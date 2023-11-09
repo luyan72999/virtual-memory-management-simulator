@@ -71,9 +71,7 @@ public:
         pteShift = pteNumberOfBits;// 11
     }
 
-    long int getPageSize() const {
-        return pageSize;
-    }
+
     // set a mapping from virtual page to physical frame
     void setMapping(long int vpn, long int ptePfn, long int pfn) {
         //pdbr 1101100
@@ -194,157 +192,23 @@ int main() {
     cout << "Here should be 0: " << memory[checkAdr] << endl;
 
     return 0;
-}
-
-class process {
-private:
-    long int pid;
-    long int size;
-    uint32_t startAddress;
-    uint32_t endAddress;
-
-public:
-    process(long int pidGiven, long int sizeGiven) {
-        pid = pidGiven;
-        size = sizeGiven;
-        startAddress = 0;
-        endAddress = 0;
-    }
-
-    long int getPid() const {
-        return pid;
-    }
-
-    long int getSize() const {
-        return size;
-    }
-
-    //start address of current process
-    uint32_t getStart() const {
-        return startAddress;
-    }
-
-    //end address of current process
-    uint32_t getEnd() const {
-      return endAddress;
-    }
-
-    void updateEnd(long int size) {
-        endAddress += size;
-    }
-
-    void updateStart(long int size) {
-        startAddress = size;
-    }
-};
 
 
-class os {
-private:
-    TwoLevelPageTable& pageTable;
-    vector<bool> memoryMap; // Represent physical address. True for allocated, false for free
-    vector<process> processes; // List of processes based on FIFO rule
-    uint32_t heapTop;
+    // 1. constructor
+    //    input: pid
+    //    初始化page table，vectorOfPDEs, vectorOfPTEs
 
-public:
-    os(TwoLevelPageTable& pt, size_t memorySize) 
-        : pageTable(pt), memoryMap(memorySize, false), heapTop(0) {}
+    // 2. setMapping
+    //    input: pageSize, vpn, ptePfn, pfn (举例，4kb的page size，vpn也还是给我20bits吗)
+    //    use vpn to get pde index (use some simplified rule?), vectorOfPDEs[pdeIndex] saves valid bit, present bit and ptePfn
+    //    use ptePfn to get pte index (use some simplified rule?), vectorOfPTEs[pteIndex] saves valid bit, present bit and pfn??
+    //    如果是这样，这个page table是one-level还是two-level的有区别吗？
+    //    而且我也看不出来，pageSize这里怎么用？
 
-    long int allocateMemory(process& process, long int size) {
-        size_t pagesNeeded = ceil(static_cast<double>(size) / pageTable.getPageSize());
-        size_t freePages = 0;
-        size_t start = 0;
-        heapTop += size;
+    // 3. translate
+    //    input: vpn
+    //    output: pfn, pageSize, pid
 
-        for (size_t i = 0; i < memoryMap.size(); ++i) {
-            if (!memoryMap[i]) { // If the page is free
-                if (freePages == 0) start = i; // Mark start of potential free block
-                freePages++;
-                if (freePages == pagesNeeded) {
-                    process.updateStart(start * pageTable.getPageSize()); // Set the start address of the process
-                    for (size_t j = start; j < start + pagesNeeded; ++j) {
-                        memoryMap[j] = true; // Mark pages as allocated
-                        long int pfn = j; // Get physical frame number
-                        long int vpn = process.getStart() / pageTable.getPageSize() + (j - start); // Calculate VPN for each page
-                        pageTable.setMapping(vpn, pfn, pfn); // Set the mapping for each page
-                    }
-                    return process.getStart(); // Return starting virtual address of allocated block
-                }
-            } else {
-                freePages = 0; // Reset the count if a used page is encountered
-            }
-        }
-        throw runtime_error("Not enough memory to allocate");
-    }
-
-    void freeMemory(long int startAddress, long int size) {
-        size_t pagesToFree = size / pageTable.getPageSize();
-        size_t startIndex = startAddress / pageTable.getPageSize();
-
-        if (startIndex + pagesToFree > memoryMap.size()) {
-            throw runtime_error("Invalid memory block to free");
-        }
-
-        for (size_t i = startIndex; i < startIndex + pagesToFree; ++i) {
-            memoryMap[i] = false; // Mark pages as free
-            // Also invalidate the page table entry for this page (pagetable.remove/invalidate(vpn))
-        }
-    }
-
-    uint32_t createProcess (long int pid, long int size) {
-      process newProcess(pid, size);
-      processes.push_back(newProcess);
-
-      try {
-        long int startAddress = allocateMemory(newProcess, size);
-          newProcess.updateEnd(size);
-          return newProcess.getStart();
-        } catch (const runtime_error& e) {
-            processes.pop_back();
-            throw;
-        }
-    }
-
-    void destroyProcess (long int pid) {
-      for (int i = 0; i < processes.size(); i++) {
-        if (processes[i].getPid() == pid) {
-          processes.erase(processes.begin() + i);
-          freeMemory(processes[i].getStart(), processes[i].getSize());
-          break;
-        }
-      }
-    }
-
-    void swap () {
-      
-    }
-};
-
-int main() {
-
-    long int pageSize = pow(2, 12);
-    long int pdbr = 108;
-    long int memorySize = 10000;
-    vector<long int> memory(memorySize, 0); // cannot support a too large vector
-
-    TwoLevelPageTable pageTable(pageSize, pdbr, memory);
-
-    process p1(1, 4096);
-
-    os operatingSystem(pageTable, memorySize);
-
-    long int allocatedAddress = operatingSystem.allocateMemory(p1, 4096);
-
-    operatingSystem.freeMemory(allocatedAddress, 4096);
-
-    // Setting some mappings
-    pageTable.setMapping(0x6, 0x21, 0x35); //6, 33, 55
-
-    // Getting some mappings
-    long int frame = pageTable.translate(0x6);
-
-    // Printing results
-    cout << "Mapping for virtual page 0x6: Physical frame " << frame << endl;
-
-    return 0;
+    // 4. free
+    //    remove page table for the process
 }
