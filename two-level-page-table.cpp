@@ -200,13 +200,15 @@ class process {
 private:
     long int pid;
     long int size;
-    uint32_t heapTop;
+    uint32_t startAddress;
+    uint32_t endAddress;
 
 public:
     process(long int pidGiven, long int sizeGiven) {
         pid = pidGiven;
         size = sizeGiven;
-        heapTop = 0;
+        startAddress = 0;
+        endAddress = 0;
     }
 
     long int getPid() const {
@@ -217,12 +219,22 @@ public:
         return size;
     }
 
-    uint32_t getHeapTop() const {
-        return heapTop;
+    //start address of current process
+    uint32_t getStart() const {
+        return startAddress;
     }
 
-    void updateHeapTop(long int size) {
-        heapTop += size;
+    //end address of current process
+    uint32_t getEnd() const {
+      return endAddress;
+    }
+
+    void updateEnd(long int size) {
+        endAddress += size;
+    }
+
+    void updateStart(long int size) {
+        startAddress = size;
     }
 };
 
@@ -231,28 +243,32 @@ class os {
 private:
     TwoLevelPageTable& pageTable;
     vector<bool> memoryMap; // Represent physical address. True for allocated, false for free
+    vector<process> processes; // List of processes based on FIFO rule
+    uint32_t heapTop;
 
 public:
     os(TwoLevelPageTable& pt, size_t memorySize) 
-        : pageTable(pt), memoryMap(memorySize, false) {}
+        : pageTable(pt), memoryMap(memorySize, false), heapTop(0) {}
 
     long int allocateMemory(process& process, long int size) {
         size_t pagesNeeded = ceil(static_cast<double>(size) / pageTable.getPageSize());
         size_t freePages = 0;
         size_t start = 0;
+        heapTop += size;
 
         for (size_t i = 0; i < memoryMap.size(); ++i) {
             if (!memoryMap[i]) { // If the page is free
                 if (freePages == 0) start = i; // Mark start of potential free block
                 freePages++;
                 if (freePages == pagesNeeded) {
+                    process.updateStart(start * pageTable.getPageSize()); // Set the start address of the process
                     for (size_t j = start; j < start + pagesNeeded; ++j) {
                         memoryMap[j] = true; // Mark pages as allocated
-                        long int pfn = j; // Virtual page number
-                        long int vpn = process.getHeapTop() / pageTable.getPageSize(); //process.get // Allocate a physical frame
+                        long int pfn = j; // Get physical frame number
+                        long int vpn = process.getStart() / pageTable.getPageSize() + (j - start); // Calculate VPN for each page
                         pageTable.setMapping(vpn, pfn, pfn); // Set the mapping for each page
                     }
-                    return start * pageTable.getPageSize(); // Return starting virtual address of allocated block
+                    return process.getStart(); // Return starting virtual address of allocated block
                 }
             } else {
                 freePages = 0; // Reset the count if a used page is encountered
@@ -273,6 +289,34 @@ public:
             memoryMap[i] = false; // Mark pages as free
             // Also invalidate the page table entry for this page (pagetable.remove/invalidate(vpn))
         }
+    }
+
+    uint32_t createProcess (long int pid, long int size) {
+      process newProcess(pid, size);
+      processes.push_back(newProcess);
+
+      try {
+        long int startAddress = allocateMemory(newProcess, size);
+          newProcess.updateEnd(size);
+          return newProcess.getStart();
+        } catch (const runtime_error& e) {
+            processes.pop_back();
+            throw;
+        }
+    }
+
+    void destroyProcess (long int pid) {
+      for (int i = 0; i < processes.size(); i++) {
+        if (processes[i].getPid() == pid) {
+          processes.erase(processes.begin() + i);
+          freeMemory(processes[i].getStart(), processes[i].getSize());
+          break;
+        }
+      }
+    }
+
+    void swap () {
+      
     }
 };
 
