@@ -22,6 +22,7 @@ private:
     int pfnBits = physMemBits-12; //physical page size is always 4KB
     map<uint32_t, uint32_t> mapToPDEs;
     map<uint32_t, uint32_t> mapToPTEs;
+    map<uint32_t,uint32_t> vpnAndPageSize;
 
 public:
     // 1. constructor
@@ -36,6 +37,7 @@ public:
     //    use vpn to get pde index (use some simplified rule?), vectorOfPDEs[pdeIndex] saves valid bit, present bit and ptePfn
     //    use ptePfn to get pte index (use some simplified rule?), vectorOfPTEs[pteIndex] saves valid bit, present bit and pfn??
     void setMapping(uint32_t pageSize, uint32_t vpn, uint32_t ptePfn, uint32_t pfn) {
+        vpnAndPageSize[vpn]=pageSize;
         int pageSizeBits = log2(pageSize);
         int vpnBits = virtualMemBits - pageSizeBits;
         uint32_t numPTEs = pageSize/4096;
@@ -106,7 +108,8 @@ public:
 
     // 4. free
     //    remove mapping given vpn
-    void free(uint32_t vpn, uint32_t pageSize) {
+    void free(uint32_t vpn) {
+        uint32_t  pageSize=vpnAndPageSize[vpn];
         uint32_t numPTEs = pageSize/4096;
         uint32_t pde=mapToPDEs[vpn];
         int validBitPDE = pde >> pfnBits;
