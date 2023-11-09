@@ -38,6 +38,7 @@ public:
     void setMapping(uint32_t pageSize, uint32_t vpn, uint32_t ptePfn, uint32_t pfn) {
         int pageSizeBits = log2(pageSize);
         int vpnBits = virtualMemBits - pageSizeBits;
+        uint32_t numPTEs = pageSize/4096;
 
         uint32_t pde = mapToPDEs[vpn]; //presentBit, validBit, ptePfn
         int validBitPDE = pde >> pfnBits;
@@ -54,20 +55,22 @@ public:
 
         mapToPDEs[vpn] = (0b11<<pfnBits)|ptePfn;
 
-        uint32_t pte = mapToPTEs[ptePfn]; //presentBit, validBit, pfn
-        int validBitPTE = pte >> pfnBits;
-        int presentBitPTE = pte>> (pfnBits+1);
+        for(uint32_t i=ptePfn; i<ptePfn+numPTEs; i++){
+            uint32_t pte = mapToPTEs[ptePfn]; //presentBit, validBit, pfn
+            int validBitPTE = pte >> pfnBits;
+            int presentBitPTE = pte>> (pfnBits+1);
 
-        if(validBitPTE==1){
-            cout<<"Seg fault."<<endl;
-            return;
-        }
-        if(presentBitPTE==1){
-            cout<<"Page fault."<<endl;
-            return;
-        }
+            if(validBitPTE==1){
+                cout<<"Seg fault."<<endl;
+                return;
+            }
+            if(presentBitPTE==1){
+                cout<<"Page fault."<<endl;
+                return;
+            }
 
-        mapToPTEs[ptePfn] = (0b11<<pfnBits)|pfn;
+            mapToPTEs[ptePfn] = (0b11<<pfnBits)|pfn;
+        }
     }
 
     // 3. translate
@@ -103,8 +106,35 @@ public:
 
     // 4. free
     //    remove mapping given vpn
-    void free(long int vpn) {
+    void free(uint32_t vpn, uint32_t pageSize) {
+        uint32_t numPTEs = pageSize/4096;
+        uint32_t pde=mapToPDEs[vpn];
+        int validBitPDE = pde >> pfnBits;
+        int presentBitPDE = pde>> (pfnBits+1);
 
+        if(validBitPDE==0){
+            throw runtime_error("Valid bit of pde is 0. Nothing to free.");
+        }
+        if(presentBitPDE==0){
+            throw runtime_error("Present bit of pde is 0.");
+        }
+        uint32_t ptePfn=pde & ((1<<pfnBits)-1);
+
+        for(uint32_t i=ptePfn; i<ptePfn+numPTEs; i++){
+            uint32_t pte=mapToPTEs[ptePfn];
+            int validBitPTE = pte >> pfnBits;
+            int presentBitPTE = pte>> (pfnBits+1);
+
+            if(validBitPTE==0){
+                throw runtime_error("Valid bit of pte is 0. Nothing to free.");
+            }
+            if(presentBitPTE==0){
+                throw runtime_error("Present bit of pte is 0.");
+            }
+
+            mapToPTEs.erase(ptePfn);
+        }
+        mapToPDEs.erase(vpn);
 }
 
 };
