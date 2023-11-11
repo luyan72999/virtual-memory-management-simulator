@@ -72,32 +72,40 @@ class Tlb {
     }
 
 
-    // look_up(): given a vpn, look it up in both l1 and l2  TBD
+    // look_up(): given a vpn, look it up in both l1 and l2
     // returns pfn if found
-    // returns -1 if not found, os needs to handle this exception
+    // TBD: how to signal a TLB miss if cannot specify a negative number? return 0 and let pfn starts with 1?
     uint32_t look_up(uint32_t virtual_addr, uint32_t process_id) {
-      // exact vpn based on page_size
-      // uint32_t mask = log2(page_size);
-      // uint32_t vpn = virtual_addr >> mask;
-
       // first, check l1
-      // for (int i = 0; i < l1_list->size(); i++) {
-      //   if ((*l1_list)[i].vpn == vpn) {
-      //     return (*l1_list)[i].pfn;
-      //   }
-      // }
-      // not in l1, check l2: 
-      // for (int i = 0; i < l2_list->size(); i++) {
-      //   if ((*l2_list)[i]->vpn == vpn) {
-      //     // if found, insert this item to l1
-      //     l1_insert((*l2_list)[i]);
-      //     return (*l2_list)[i]->pfn;
-      //   }
-      // }
+      // loop through l1, compute the virtual addr vpn using tlb entry page size, and compare the 2 vpns
+      for (int i = 0; i < l1_list->size(); i++) {
+        uint32_t page_size = (*l1_list)[i].page_size;
+        uint32_t mask = log2(page_size);
+        uint32_t vpn = virtual_addr >> mask;
+        if (vpn == (*l1_list)[i].vpn) {
+          return (*l1_list)[i].pfn;
+        }
+      }
 
-      // how to return if not found? can return -1 but return type is unsigned int 
-      // not found in both tlbs: os goes to page table and get pfn and meta data
-      
+      // not in l1, check l2: 
+      // first, check if the process is already in l2
+      for (int i = 0; i < max_process_allowed; i++) {
+        if(process_id == (*l2_process)[i]) {
+          // process already in l2, check corresponding sub l2 cache
+          for (int j = 0; j < l2_size_per_process; j++) {
+            vector<TlbEntry>* sub_list = (*l2_list)[i];
+            uint32_t page_size_2 = (*sub_list)[j].page_size;
+            uint32_t mask_2 = log2(page_size_2);
+            uint32_t vpn_2 = virtual_addr >> mask_2;
+            if (vpn_2 == (*sub_list)[j].vpn) {
+              // found in l2, insert this one into l1
+              l1_insert((*sub_list)[j]);
+              return (*sub_list)[j].pfn;
+            }
+          }
+        }
+      }
+      // otherwise, l2 miss, go to page table with virtual addr and get a page table entry
     }
 
 
