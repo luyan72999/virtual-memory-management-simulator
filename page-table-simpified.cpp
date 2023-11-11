@@ -2,6 +2,8 @@
 #include <vector>
 #include <cstdint>
 #include <map>
+#include "TwoLevelPageTable.h"
+
 
 using namespace std;
 
