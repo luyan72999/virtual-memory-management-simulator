@@ -43,7 +43,7 @@ private:
 
     long int pdbr;
     long int pageSize;
-    vector<long int>& memory;
+    vector<long int> &memory;
 
 public:
     TwoLevelPageTable(long int pageSizeGiven, long int pdbrGiven, vector<long int> &memoryGiven) : memory(memoryGiven) {
