@@ -8,14 +8,6 @@
 using namespace std;
 
 
-/**
- * Create a two-level page table for a process, given the PID.
- * Given page size, vpn, ptePfn and pfn, set a mapping from virtual page to physical frame.
- * Given a vpn, translate it to a pfn, return the pfn, pageSize.
- * Physical memory 32bit
- * Address space 32bit
- * page size from 4KB to 1GB
- */
 
 // 1. constructor
 //    input: pid
