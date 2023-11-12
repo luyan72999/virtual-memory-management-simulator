@@ -21,7 +21,7 @@ os::os(TwoLevelPageTable& pt, size_t memorySize, size_t diskSize, uint32_t high_
   : pageTable(pt), memoryMap(memorySize, false), disk(diskSize, 0), high_watermark(high_watermarkGiven), low_watermark(low_watermarkGiven), pagesize(4096), totalFreePages(memoryMap.size()) {
 }
 
-uint32_t os::allocateMemory(process& proc, size_t size) {
+uint32_t os::allocateMemory(process& proc, uint32_t size) {
     size_t pagesNeeded = ceil((size) / pagesize);
 
     //not sure if seeting total freepages correct
@@ -54,8 +54,8 @@ uint32_t os::allocateMemory(process& proc, size_t size) {
 
                 for (size_t j = start; j < start + pagesNeeded; ++j) {
                     memoryMap[j] = true;  // Mark pages as allocated
-                    long int pfn = j;
-                    long int vpn = startAddress / pagesize + (j - start);
+                    uint32_t pfn = j;
+                    uint32_t vpn = startAddress / pagesize + (j - start);
                     // uint32_t pdi = vpn >> pteIndexBits;
 
                     // what should pageDirectoryBaseAddress be
@@ -71,7 +71,7 @@ uint32_t os::allocateMemory(process& proc, size_t size) {
     throw runtime_error("Not enough memory to allocate");
 }
 
-void os::freeMemory(long int baseAddress, size_t memorySizeToFree) {
+void os::freeMemory(uint32_t baseAddress, uint32_t memorySizeToFree) {
     uint32_t startVpn = baseAddress / pagesize;
     size_t pagesToFree = ceil((memorySizeToFree) / pagesize);
 
@@ -156,9 +156,9 @@ void os::swapOutPage(uint32_t vpn) {
     }
 }
 
+/*
 void handleTLBMiss(uint32_t virtualAddress) {
     //map = pt.getmapToPDEs();
-    /*
       uint32_t pde = mapToPDEs[vpn];
       int validBitPDE = pde >> pfnBits;
       int presentBitPDE = pde >> (pfnBits + 1);
@@ -166,10 +166,10 @@ void handleTLBMiss(uint32_t virtualAddress) {
       if (presentBitPDE == 0) {
         swapInPage(vpn);
       }
-    */
 }
+*/
 
-void os::swapInPage(uint32_t vpn) {
+uint32_t os::swapInPage(uint32_t vpn) {
     // Check if the page is on disk
     map<uint32_t, size_t>::iterator res = pageToDiskMap.find(vpn);
     if (res != pageToDiskMap.end()) {
@@ -178,17 +178,12 @@ void os::swapInPage(uint32_t vpn) {
           throw runtime_error("No free frame available in physical memory");
       }
 
-      // Move the page from disk to the free frame in physical memory
-      memoryMap[freePfn] = true;
-
-      // Update the page table with the new mapping
-      pageTable.setMapping(vpn, freePfn, freePfn);
-
       // Clear the entry on the disk and remove it from pageToDiskMap
       disk[res->second] = 0;
       pageToDiskMap.erase(res);
 
       totalFreePages++;
+      return freePfn;
     } else {
         throw runtime_error("Page not found on disk for VPN " + to_string(vpn));
     }
