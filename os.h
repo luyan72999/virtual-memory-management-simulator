@@ -19,21 +19,20 @@ private:
     uint32_t high_watermark;
     uint32_t low_watermark;
     int pagesize;
-    size_t totalFreePages;
+    uint32_t totalFreeSize;
     std::vector<uint32_t> disk;
     std::map<uint32_t, size_t> pageToDiskMap;
 
 public:
     os(TwoLevelPageTable& pt, size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven, uint32_t low_watermarkGiven);
 
-    uint32_t allocateMemory(process& proc, size_t size);
-    void freeMemory(long int baseAddress, size_t memorySizeToFree);
+    uint32_t allocateMemory(process& proc, uint32_t size);
+    void freeMemory(uint32_t baseAddress, uint32_t memorySizeToFree);
     uint32_t createProcess(long int pid);
     void destroyProcess(long int pid);
-    void handleTLBMiss();
-    void swapOutToMeetWatermark();
-    void swapOutPage(uint32_t vpn);
-    void swapInPage(uint32_t vpn);
+    void swapOutToMeetWatermark(uint32_t sizeTobeFree);
+    void swapOutPage(uint32_t vpn, uint32_t pfn);
+    uint32_t swapInPage(uint32_t vpn);
     size_t findFreeFrame();
 };
 
