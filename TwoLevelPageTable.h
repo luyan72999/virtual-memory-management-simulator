@@ -12,8 +12,8 @@ using namespace std;
 
 /**
  * Create a two-level page table for a process, given the PID.
- * Given page size, vpn, ptePfn and pfn, set a mapping from virtual page to physical frame.
- * Given a vpn, translate it to a pfn, return the pfn, pageSize.
+ * Given page size, vpn, and pfn, set a mapping from virtual page to physical frame.
+ * Given a vpn, translate it to a pfn, return pte.
  * Physical memory 32bit
  * Address space 32bit
  * page size from 4KB to 1GB
@@ -31,9 +31,9 @@ private:
 public:
     TwoLevelPageTable(int pidGiven);
 
-    void setMapping(uint32_t pageSize, uint32_t vpn, uint32_t ptePfn, uint32_t pfn);
+    void setMapping(uint32_t pageSize, uint32_t vpn, uint32_t pfn);
 
-    uint32_t translate(uint32_t vpn);
+    pair<uint32_t, uint32_t> translate(uint32_t vpn);
 
     void free(uint32_t vpn);
 };
