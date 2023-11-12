@@ -30,3 +30,11 @@ long int process::getStack() const {
 long int process::getHeap() const {
     return heap;
 }
+
+// free  input: size
+// pagetable per process
+// every time os allocate memory, 
+// 从右往左便利vpnlist 然后free需要的size
+// invalidate pt
+
+//
