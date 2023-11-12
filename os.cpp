@@ -18,32 +18,21 @@ using namespace std;
 
 
 os::os(TwoLevelPageTable& pt, size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven, uint32_t low_watermarkGiven) 
-  : pageTable(pt), memoryMap(memorySize, false), disk(diskSize, 0), high_watermark(high_watermarkGiven), low_watermark(low_watermarkGiven), pagesize(4096), totalFreePages(memoryMap.size()) {
+  : pageTable(pt), memoryMap(memorySize, false), disk(diskSize, 0), high_watermark(high_watermarkGiven), low_watermark(low_watermarkGiven), pagesize(4096), totalFreeSize(2^32) {
 }
 
 uint32_t os::allocateMemory(process& proc, uint32_t size) {
     size_t pagesNeeded = ceil((size) / pagesize);
 
-    //not sure if seeting total freepages correct
-    if (totalFreePages - pagesNeeded < low_watermark) {
+    if (totalFreeSize - size < low_watermark) {
         // Swap out pages to maintain free memory above the low watermark
-        swapOutToMeetWatermark();
+        uint32_t sizeTobeFree = high_watermark - (totalFreeSize - size);
+        swapOutToMeetWatermark(sizeTobeFree);
     }
 
     size_t freePages = 0;
     size_t start = 0;
 
-    /*
-    uint32_t pdi = vpn >> pteIndexBits; // Extract the top bits for the PDI
-    const int sizeOfPDE = 4; // Size of a Page Directory Entry in bytes
-    uint32_t pdeAddress = pageDirectoryBaseAddress + (pdi * sizeOfPDE);
-
-    int totalVPNBits = 20; 
-    int pteIndexBits = 10;
-    int pdeIndexBits = totalVPNBits - pteIndexBits; // Bits for PDI
-    int sizeOfPDE = 4; //what do we want
-
-    */
     for (size_t i = 0; i < memoryMap.size(); ++i) {
         if (!memoryMap[i]) { // If the page is free
             if (freePages == 0) start = i;
@@ -116,45 +105,44 @@ void os::destroyProcess(long int pid) {
     throw runtime_error("Process with PID " + to_string(pid) + " not found.");
 }
 
-void os::swapOutToMeetWatermark() {
-    size_t pagesToFree = high_watermark - totalFreePages;
+void os::swapOutToMeetWatermark(uint32_t sizeToFree) {
+    size_t freedMemory = 0;
+    uint32_t pfnBits = 20;
 
     for (process& proc : processes) {
-      if (pagesToFree == 0) break; // Stop if we've freed enough pages
+        if (freedMemory >= sizeToFree) break; 
 
-      uint32_t startAddress = proc.getCode();
-      uint32_t endAddress = proc.getHeap();
-      uint32_t startVpn = startAddress / pagesize;
-      uint32_t endVpn = (endAddress + pagesize - 1) / pagesize; // Include partial pages
+        uint32_t currentAddress = proc.getCode(); // Start from the beginning
+        uint32_t endAddress = proc.getHeap();
 
-      for (uint32_t vpn = startVpn; vpn < endVpn && pagesToFree > 0; vpn++) {
-          swapOutPage(vpn);
-          pagesToFree--;
-      }
+        while (currentAddress < endAddress && freedMemory < sizeToFree) {         
+            pair<uint32_t, uint32_t> pteAndPageSize = pageTable.translate(currentAddress);
+            uint32_t pageSize = pteAndPageSize.second;
+            uint32_t pte = pteAndPageSize.first;
+            uint32_t vpn = currentAddress / pageSize;
+            uint32_t pfn = pte & ((1 << pfnBits) - 1);
+
+            swapOutPage(vpn, pfn); // Call swapOutPage for the calculated VPN
+
+            freedMemory += pageSize;
+            currentAddress += pageSize; // Move to the next page
+        }
     }
 }
 
-void os::swapOutPage(uint32_t vpn) {
-    // Translate VPN to PFN
-    size_t pfnToSwapOut = pageTable.translate(vpn);
-
+void os::swapOutPage(uint32_t vpn, uint32_t pfnToSwapOut) {
     if (pfnToSwapOut < memoryMap.size() && memoryMap[pfnToSwapOut]) {
-      // Store the page data on the disk using PFN
-      disk.push_back(pfnToSwapOut); 
+        disk.push_back(pfnToSwapOut); // Store the page data on the disk
+        memoryMap[pfnToSwapOut] = false; // Free the page in physical memory
 
-      // Update the map to reflect where the page is stored on disk
-      pageToDiskMap[vpn] = disk.size() - 1;
+        // Update the map to reflect where the page is stored on disk
+        pageToDiskMap[vpn] = disk.size() - 1;
 
-      // Free the page in physical memory
-      memoryMap[pfnToSwapOut] = false;
-
-      // Invalidate the page table and TLB entries
-      pageTable.free(vpn);
-
-
-      // handle TLB invalidation
+        // update present bit
+        // pt.update(vpn)
     }
-}
+} 
+
 
 /*
 void handleTLBMiss(uint32_t virtualAddress) {
@@ -182,7 +170,8 @@ uint32_t os::swapInPage(uint32_t vpn) {
       disk[res->second] = 0;
       pageToDiskMap.erase(res);
 
-      totalFreePages++;
+      //update total free size
+
       return freePfn;
     } else {
         throw runtime_error("Page not found on disk for VPN " + to_string(vpn));
