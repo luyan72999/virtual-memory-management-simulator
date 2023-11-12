@@ -14,7 +14,7 @@
 class os {
 private:
     int minPageSize;
-    process* currentProc;
+    process* runningProc;
     std::vector<bool> memoryMap;
     std::vector<process> processes;
     uint32_t high_watermark;

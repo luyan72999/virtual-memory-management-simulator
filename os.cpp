@@ -38,8 +38,8 @@ uint32_t os::allocateMemory(uint32_t size) {
             if (freePages == 0 && i % (size / minPageSize) == 0) start = i;
             freePages++;
             if (freePages == pagesNeeded) {
-                size_t startAddress = currentProc->heap;
-                currentProc->allocateMem(size);  // Update the process's heap top
+                size_t startAddress = runningProc->heap;
+                runningProc->allocateMem(size);  // Update the process's heap top
 
                 for (size_t j = start; j < start + pagesNeeded; ++j) {
                     memoryMap[j] = true;  // Mark pages as allocated
@@ -49,7 +49,7 @@ uint32_t os::allocateMemory(uint32_t size) {
 
                     // what should pageDirectoryBaseAddress be
                     //uint32_t pdeAddress = pageDirectoryBaseAddress + (pdi * sizeOfPDE);
-                    currentProc -> pageTable.setMapping(size, vpn, pfn);
+                    runningProc -> pageTable.setMapping(size, vpn, pfn);
                 }
                 return startAddress;
             }
@@ -66,14 +66,14 @@ uint32_t os::allocateMemory(uint32_t size) {
 }
 
 void os::freeMemory(uint32_t baseAddress) {
-    uint32_t sizeToFree = (currentProc->heap - baseAddress);
+    uint32_t sizeToFree = (runningProc->heap - baseAddress);
     uint32_t pagesToFree = sizeToFree / minPageSize;
     uint32_t sizeFreed = 0;
     uint32_t vpn = baseAddress;
 
     while (sizeFreed != sizeToFree) {
-        auto p = currentProc->pageTable.translate(baseAddress);
-        currentProc->pageTable.free(vpn);
+        auto p = runningProc->pageTable.translate(baseAddress);
+        runningProc->pageTable.free(vpn);
         uint32_t basePfn = p.first, pageSize = p.second;
         for (uint32_t pfn = basePfn; pfn < basePfn + pageSize / minPageSize;
              pfn++) {
@@ -115,7 +115,7 @@ void os::swapOutToMeetWatermark(uint32_t sizeToFree) {
 
         while (currentAddress < endAddress && freedMemory < sizeToFree) {
             pair<uint32_t, uint32_t> pteAndPageSize =
-                currentProc->pageTable.translate(currentAddress);
+                runningProc->pageTable.translate(currentAddress);
             uint32_t pageSize = pteAndPageSize.second;
             uint32_t pte = pteAndPageSize.first;
             uint32_t vpn = currentAddress / pageSize;
@@ -173,14 +173,14 @@ uint32_t os::swapInPage(uint32_t vpn, uint32_t size) {
             if (freePages == 0 && i % (size / minPageSize) == 0) start = i;
             freePages++;
             if (freePages == pagesNeeded) {
-                size_t startAddress = currentProc->heap;
-                currentProc->allocateMem(size);  // Update the process's heap top
+                size_t startAddress = runningProc->heap;
+                runningProc->allocateMem(size);  // Update the process's heap top
 
                 for (size_t j = start; j < start + pagesNeeded; ++j) {
                     memoryMap[j] = true;  // Mark pages as allocated
                     uint32_t pfn = j;
                     uint32_t vpn = startAddress / minPageSize + (j - start);
-                    currentProc -> pageTable.setMapping(size, vpn, pfn);
+                    runningProc -> pageTable.setMapping(size, vpn, pfn);
                 }
                 return startAddress;
             }
