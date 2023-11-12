@@ -12,12 +12,15 @@
 #include <stdexcept>
 #include <cstdint>
 #include <map>
+#include <fstream>
+#include <sstream>
+
 
 
 using namespace std;
 
 
-os::os(TwoLevelPageTable& pt, size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven, uint32_t low_watermarkGiven) 
+os::os(size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven, uint32_t low_watermarkGiven) 
   : minPageSize(4096), memoryMap(memorySize / minPageSize, false), disk(diskSize, 0), high_watermark(high_watermarkGiven), low_watermark(low_watermarkGiven), totalFreeSize(-1) {
 }
 
@@ -125,6 +128,8 @@ void os::swapOutToMeetWatermark(uint32_t sizeToFree) {
 
             freedMemory += pageSize;
             currentAddress += pageSize; // Move to the next page
+
+            invalidate_tlb(vpn, proc.pid);
         }
     }
 }
@@ -203,4 +208,87 @@ size_t os::findFreeFrame() {
         }
     }
     return -1; // No free frame found
+}
+
+void os::handleInstruction(const string& instruction, uint32_t value, uint32_t pid) {
+    uint32_t result;
+    if (instruction == "alloc") {
+      result = allocateMemory(value);
+    } else if (instruction == "free") {
+      freeMemory(value);
+    } else if (instruction == "access_stak") {
+      result = accessStack(value);
+    } else if (instruction == "access_heap") {
+      result = accessHeap(value);
+    } else if (instruction == "access_code") {
+      result = accessCode(value);
+    } else if (instruction == "switch") {
+      switchToProcess(pid);
+    }
+    cout << instruction << " " << hex << value << " " << result << endl;
+}
+
+uint32_t os::accessStack(uint32_t address) {
+    // Implementation for accessing stack
+    return tlb.lookup(address);
+}
+
+uint32_t os::accessHeap(uint32_t address) {
+    return tlb.lookup(address);
+}
+
+uint32_t os::accessCode(uint32_t address) {
+    return tlb.lookup(address);
+}
+
+void os::switchToProcess(uint32_t pid) {
+    auto it = find_if(processes.begin(), processes.end(), [pid](const process& proc) {
+        return proc.pid == pid;
+    });
+
+    if (it != processes.end()) {
+        // Process found, switch to it
+        runningProc = &(*it);
+    } else {
+        // Process not found, create a new one
+        createProcess(pid);
+        runningProc = &processes.back();
+    }
+}
+
+int main() {
+    size_t memorySize = 1ULL << 32; 
+    size_t diskSize = 1024 * 1024 * 1024 * 10; 
+    uint32_t high_watermark = 200 * 1024 * 1024;
+    uint32_t low_watermark = 100 * 1024 * 1024;
+
+    os osInstance(memorySize, diskSize, high_watermark, low_watermark);
+
+    ifstream inputFile("test_instructions.txt");
+    if (!inputFile) {
+        cerr << "Error: Unable to open file." << endl;
+        return 1;
+    }
+
+    string line;
+    while (getline(inputFile, line)) {
+        istringstream iss(line);
+        uint32_t pid;
+        string instruction;
+        uint32_t value = 0;
+
+        iss >> pid >> instruction;
+        if (instruction == "switch") {
+            osInstance.switchToProcess(pid);
+        } else {
+            if (!(iss >> hex >> value)) {
+                cerr << "Error parsing value for instruction: " << instruction << endl;
+                continue;
+            }
+            osInstance.handleInstruction(instruction, value, pid);
+        }
+    }
+
+    inputFile.close();
+    return 0;
 }
