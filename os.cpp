@@ -33,6 +33,17 @@ uint32_t os::allocateMemory(process& proc, size_t size) {
     size_t freePages = 0;
     size_t start = 0;
 
+    /*
+    uint32_t pdi = vpn >> pteIndexBits; // Extract the top bits for the PDI
+    const int sizeOfPDE = 4; // Size of a Page Directory Entry in bytes
+    uint32_t pdeAddress = pageDirectoryBaseAddress + (pdi * sizeOfPDE);
+
+    int totalVPNBits = 20; 
+    int pteIndexBits = 10;
+    int pdeIndexBits = totalVPNBits - pteIndexBits; // Bits for PDI
+    int sizeOfPDE = 4; //what do we want
+
+    */
     for (size_t i = 0; i < memoryMap.size(); ++i) {
         if (!memoryMap[i]) { // If the page is free
             if (freePages == 0) start = i;
@@ -45,7 +56,11 @@ uint32_t os::allocateMemory(process& proc, size_t size) {
                     memoryMap[j] = true;  // Mark pages as allocated
                     long int pfn = j;
                     long int vpn = startAddress / pagesize + (j - start);
-                    pageTable.setMapping(vpn, pfn, pfn);
+                    // uint32_t pdi = vpn >> pteIndexBits;
+
+                    // what should pageDirectoryBaseAddress be
+                    //uint32_t pdeAddress = pageDirectoryBaseAddress + (pdi * sizeOfPDE);
+                    pageTable.setMapping(size, vpn, pfn);
                 }
                 return startAddress;
             }
@@ -101,11 +116,6 @@ void os::destroyProcess(long int pid) {
     throw runtime_error("Process with PID " + to_string(pid) + " not found.");
 }
 
-void os::handleTLBMiss() {
-    // Method implementation
-    // ...
-}
-
 void os::swapOutToMeetWatermark() {
     size_t pagesToFree = high_watermark - totalFreePages;
 
@@ -144,6 +154,19 @@ void os::swapOutPage(uint32_t vpn) {
 
       // handle TLB invalidation
     }
+}
+
+void handleTLBMiss(uint32_t virtualAddress) {
+    //map = pt.getmapToPDEs();
+    /*
+      uint32_t pde = mapToPDEs[vpn];
+      int validBitPDE = pde >> pfnBits;
+      int presentBitPDE = pde >> (pfnBits + 1);
+
+      if (presentBitPDE == 0) {
+        swapInPage(vpn);
+      }
+    */
 }
 
 void os::swapInPage(uint32_t vpn) {
