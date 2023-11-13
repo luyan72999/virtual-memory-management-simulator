@@ -8,7 +8,7 @@ TlbEntry::TlbEntry(uint32_t process_id, uint32_t page_size, uint32_t vpn, uint32
 //two-level tlb
 // constructor
 Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) : l1_size(l1_size), l2_size(l2_size), max_process_allowed(max_process_allowed) {
-  //by default: l1 size 64, l2 size 1024, max process allowed is 4
+  // by default: l1 size 64, l2 size 1024, max process allowed is 4
   l1_list = new vector<TlbEntry>();
   l2_list = new vector<vector<TlbEntry>*>();
 
@@ -19,6 +19,7 @@ Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) : l1_
   
   l2_process = new vector<uint32_t>();
   srand(time(NULL));
+  cout << "TLB initialized" << endl;
 }
 
 // Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) {
@@ -64,21 +65,22 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
     }
   }
 
-  // not in l1, check l2: 
+  // not in l1, check l2:
   // first, check if the process is already in l2
-  for (int i = 0; i < max_process_allowed; i++) {
-    if(process_id == (*l2_process)[i]) {
-      // process already in l2, check corresponding sub l2 cache
-      for (int j = 0; j < l2_size_per_process; j++) {
-        vector<TlbEntry>* sub_list = (*l2_list)[i];
-        uint32_t page_size_2 = (*sub_list)[j].page_size;
-        uint32_t mask_2 = log2(page_size_2);
-        uint32_t vpn_2 = virtual_addr >> mask_2;
-        if (vpn_2 == (*sub_list)[j].vpn) {
-          // found in l2, insert this one into l1
-          l1_insert((*sub_list)[j]);
-          return (*sub_list)[j].pfn;
-        }
+  for (int i = 0; i < l2_list->size(); i++) {
+    if ((*l2_list)[i]->empty())
+      continue;
+    if ((*l2_list)[i]->back().process_id != process_id)
+      continue;
+    for (int j = 0; j < (*l2_list)[i]->size(); j++) {
+      TlbEntry entry = (*((*l2_list)[i]))[j];
+      uint32_t page_size_2 = entry.page_size;
+      uint32_t mask_2 = log2(page_size_2);
+      uint32_t vpn_2 = virtual_addr >> mask_2;
+      if (vpn_2 == entry.vpn) {
+        // found in l2, insert this one into l1
+        l1_insert(entry);
+        return entry.pfn;
       }
     }
   }
