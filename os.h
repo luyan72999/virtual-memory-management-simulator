@@ -12,6 +12,8 @@
 #include <map>
 #include <stdexcept>
 
+extern int memory_access_attempts;
+
 class os {
 private:
     int minPageSize;
@@ -41,6 +43,7 @@ public:
     uint32_t accessStack(uint32_t baseAddress);
     uint32_t accessHeap(uint32_t baseAddress);
     uint32_t accessCode(uint32_t baseAddress);
+    uint32_t accessMemory(uint32_t baseAddress);
     void switchToProcess(uint32_t pid);
     vector<pair<uint32_t, uint32_t> > findPhysicalFrames(uint32_t size);
 };

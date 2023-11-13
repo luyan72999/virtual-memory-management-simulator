@@ -1,4 +1,6 @@
 #include "os.h"
+#include "tlb.h"
+#include "TwoLevelPageTable.h"
 #include <stdint.h>
 #include <fstream>
 #include <sstream>
@@ -38,6 +40,11 @@ int main() {
             osInstance.handleInstruction(instruction, value, pid);
         }
     }
+
+    cout << "Total memory access attempts: " << memory_access_attempts << endl;
+    cout << "L1 TLB hits: " << L1_hit << endl;
+    cout << "L2 TLB hits: " << L2_hit << endl;
+    cout << "Memory hits: " << memory_hit << endl;
 
     inputFile.close();
     return 0;
