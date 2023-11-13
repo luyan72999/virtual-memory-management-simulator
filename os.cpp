@@ -91,9 +91,17 @@ void os::freeMemory(uint32_t baseAddress) {
 
 uint32_t os::createProcess(long int pid) {
     process newProcess(pid);
+
+    uint32_t codeSize = 4 * 1024 * 1024; 
+    newProcess.code = codeSize - 1; 
+
+    uint32_t stackSize = 4 * 1024 * 1024;
+    newProcess.stack = 0xFFFFFFFF - stackSize + 1;
     processes.push_back(newProcess);
+
     return pid;
 }
+
 
 void os::destroyProcess(long int pid) {
     for (int i = 0; i < processes.size(); i++) {
