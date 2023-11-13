@@ -1,6 +1,9 @@
 #include <iostream>
 #include "tlb.h"
 
+int L1_hit = 0;
+int L2_hit = 0;
+
 // constructor
 TlbEntry::TlbEntry(uint32_t process_id, uint32_t page_size, uint32_t vpn, uint32_t pfn) : process_id(process_id),page_size(page_size),vpn(vpn), pfn(pfn), reference(1) {}
 
@@ -61,6 +64,7 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
     uint32_t mask = log2(page_size);
     uint32_t vpn = virtual_addr >> mask;
     if (vpn == (*l1_list)[i].vpn) {
+      L1_hit++;
       return (*l1_list)[i].pfn;
     }
   }
@@ -80,6 +84,7 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
       if (vpn_2 == entry.vpn) {
         // found in l2, insert this one into l1
         l1_insert(entry);
+        L2_hit++;
         return entry.pfn;
       }
     }

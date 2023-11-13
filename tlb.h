@@ -10,6 +10,9 @@
 
 using namespace std;
 
+extern int L1_hit;
+extern int L2_hit;
+
 class TlbEntry {
 public:
   uint32_t process_id; // get it from page table entry obj
