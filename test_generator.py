@@ -121,8 +121,8 @@ class Process:
 
     def access_heap(self) -> int:
         def clamp(addr) -> int:
-            if addr > CODE_SIZE + self.heap_size:
-                return CODE_SIZE + self.heap_size
+            if addr >= CODE_SIZE + self.heap_size:
+                return CODE_SIZE + self.heap_size - 1
             if addr < CODE_SIZE:
                 return CODE_SIZE
             return addr
@@ -219,8 +219,8 @@ def main() -> None:
     FETCH = 0.3
     STACK = 0.6
     HEAP = 0.9
-    ALLOC = 0.94
-    FREE = 0.98
+    ALLOC = 0.98
+    FREE = 0.99
     SWITCH = 1
     with open('tests.txt', 'w') as f:
         current_process: Process = random.choice(processes)

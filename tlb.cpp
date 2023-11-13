@@ -46,8 +46,8 @@ Tlb::~Tlb() {
 TlbEntry Tlb::create_tlb_entry(uint32_t pfn, uint32_t page_size, uint32_t virtual_addr, uint32_t process_id) {
   // calculate mask: number of bits to right shift to extract vpn.
   // e.g. set mask to 12 when page size is 4KB and physical mem is 4GB (thus 20-bit vpn).
-  uint32_t mask = log2(page_size);
-  uint32_t vpn = virtual_addr >> mask; 
+  uint32_t mask = ~(page_size - 1);
+  uint32_t vpn = virtual_addr & mask >> 12;
 
   TlbEntry tlb_entry = TlbEntry(process_id, page_size, vpn, pfn);
     return tlb_entry;
@@ -61,8 +61,8 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
   // loop through l1, compute the virtual addr vpn using tlb entry page size, and compare the 2 vpns
   for (int i = 0; i < l1_list->size(); i++) {
     uint32_t page_size = (*l1_list)[i].page_size;
-    uint32_t mask = log2(page_size);
-    uint32_t vpn = virtual_addr >> mask;
+    uint32_t mask = ~(page_size - 1);
+    uint32_t vpn = virtual_addr & mask >> 12;
     if (vpn == (*l1_list)[i].vpn) {
       L1_hit++;
       return (*l1_list)[i].pfn;
@@ -78,10 +78,10 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
       continue;
     for (int j = 0; j < (*l2_list)[i]->size(); j++) {
       TlbEntry entry = (*((*l2_list)[i]))[j];
-      uint32_t page_size_2 = entry.page_size;
-      uint32_t mask_2 = log2(page_size_2);
-      uint32_t vpn_2 = virtual_addr >> mask_2;
-      if (vpn_2 == entry.vpn) {
+      uint32_t page_size = entry.page_size;
+      uint32_t mask = ~(page_size - 1);
+      uint32_t vpn = virtual_addr & mask >> 12;
+      if (vpn == entry.vpn) {
         // found in l2, insert this one into l1
         l1_insert(entry);
         L2_hit++;
@@ -133,45 +133,36 @@ void Tlb::l1_flush() {
 
 // default: maximum 256 entries allowed per process
 void Tlb::l2_insert(TlbEntry entry) {
-  if (l2_process->size() == 0) {
-  // l2 is empty, insert into 0th vector of l2, update l2_process 0th using process_id
-    (*l2_list)[0]->push_back(entry);
-    l2_process->push_back(entry.process_id);
-    return;
-  } else {
-    // check if this process is already in l2
-    for(int i = 0; i < l2_process->size(); i++) {
-      if((*l2_process)[i] == entry.process_id) {
-        // process cache already in l2, update the corresponding process cache vector
-        if ((*l2_list)[i]->size() < l2_size_per_process) {
-          // l2[i] not full, insert
-          (*l2_list)[i]->push_back(entry);
-          return;
+    auto iter = std::find_if(l2_list->begin(), l2_list->end(), [entry](const vector<TlbEntry>* procTlb) {
+        return !procTlb->empty() && procTlb->back().process_id == entry.process_id;
+    });
+    vector<TlbEntry>* toReplace = nullptr;
+    if (iter == l2_list->end()) {
+        // current process not in l2 tlb
+        auto iter = std::find_if(l2_list->begin(), l2_list->end(), [](const vector<TlbEntry>* procTlb) {
+            return procTlb->empty();
+        });
+        if (iter == l2_list->end()) {
+            // reached max_process_allowed
+            auto idx = random_generator(0, max_process_allowed);
+            toReplace = (*l2_list)[idx];
+            toReplace->clear();
         } else {
-          //l2[i] is full, pick a random one to replace
-          int random = random_generator(0, l2_size_per_process-1);
-          (*(*l2_list)[i])[random] = entry;
-          return;
+            toReplace = *iter;
         }
-      }
-    }
-    // process not in l2
-    // check if all 4 sub-l2 is in use
-    if (l2_process->size() < max_process_allowed) {
-      // not all 4 sub-l2 is in use
-      uint32_t index = l2_process->size(); 
-      l2_process->push_back(entry.process_id);
-      (*l2_list)[index]->push_back(entry);
-      return;
     } else {
-      // all 4 sub-l2 is in use: replace a random one, and insert
-      int random = random_generator(0, max_process_allowed-1);
-      (*l2_process)[random] = entry.process_id;
-      l2_flush((*l2_list)[random]);
-      (*l2_list)[random]->push_back(entry);
-      return;
+        toReplace = *iter;
     }
-  }   
+    if (toReplace->size() == l2_size_per_process) {
+        int idx = replacingPolicy(l2_size_per_process);
+        (*toReplace)[idx] = entry;
+    } else {
+        toReplace->push_back(entry);
+    }
+}
+
+int Tlb::replacingPolicy(int size) {
+    return random_generator(0, l2_size_per_process);
 }
 
 // selective flushing

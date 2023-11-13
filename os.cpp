@@ -47,6 +47,7 @@ uint32_t os::allocateMemory(uint32_t size) {
         vpn += frame_size / minPageSize;
     }
     runningProc->allocateMem(size);
+    cout << "Process " << runningProc->pid << " owns " << runningProc->heapPages << " pages" << endl;
 }
 
 void os::freeMemory(uint32_t baseAddress) {
@@ -223,7 +224,7 @@ uint32_t os::accessMemory(uint32_t address) {
         auto addr = tlb.look_up(address, runningProc->pid);
         return addr;
     } catch (const exception& e) {
-        auto pte = runningProc->pageTable.translate(address >> 12);
+        auto pte = runningProc->pageTable.translate(address);
         auto tlbEntry = tlb.create_tlb_entry(pte.pfn, pte.page_size, address, runningProc->pid);
         tlb.l1_insert(tlbEntry);
         tlb.l2_insert(tlbEntry);

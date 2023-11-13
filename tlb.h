@@ -75,6 +75,8 @@ private:
   void l2_remove(uint32_t process_id, uint32_t vpn);
 
   int random_generator(uint32_t start, uint32_t end);
+
+  int replacingPolicy(int size);
 };
 
 #endif

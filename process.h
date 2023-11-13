@@ -8,6 +8,7 @@ class process {
 public:
     long int pid;
     long int size;
+    long int heapPages;
     uint32_t code;
     uint32_t stack;
     uint32_t heap;

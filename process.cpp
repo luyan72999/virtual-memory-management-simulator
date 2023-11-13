@@ -5,14 +5,16 @@
 
 using namespace std;
 
-process::process(long int pidGiven) : pageTable(TwoLevelPageTable(pid)), pid(pidGiven), size(0), code(0), stack(0), heap(code) {}
+process::process(long int pidGiven) : pageTable(TwoLevelPageTable(pid)), pid(pidGiven), size(0), heapPages(0), code(0), stack(0), heap(code) {}
 
 void process::allocateMem(uint32_t allocatedSize) {
+    heapPages++;
     heap += allocatedSize;
     size += allocatedSize;
 }
 
 void process::freeMem(uint32_t freedSize) {
+    heapPages--;
     heap -= freedSize;
     size -= freedSize;
 }
