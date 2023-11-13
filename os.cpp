@@ -2,6 +2,7 @@
 #include "process.h"
 #include "os.h"
 #include <iostream>
+#include <utility>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -25,46 +26,19 @@ os::os(size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven, uint32_
 }
 
 uint32_t os::allocateMemory(uint32_t size) {
-    size_t pagesNeeded = size / minPageSize;
-
     if (totalFreeSize - size < low_watermark) {
         // Swap out pages to maintain free memory above the low watermark
         uint32_t sizeTobeFree = high_watermark - (totalFreeSize - size);
         swapOutToMeetWatermark(sizeTobeFree);
     }
 
-    size_t freePages = 0;
-    size_t start = 0;
-
-    for (size_t i = 0; i < memoryMap.size(); ++i) {
-        if (!memoryMap[i]) { // If the page is free
-            if (freePages == 0 && i % (size / minPageSize) == 0) start = i;
-            freePages++;
-            if (freePages == pagesNeeded) {
-                size_t startAddress = runningProc->heap;
-                runningProc->allocateMem(size);  // Update the process's heap top
-
-                for (size_t j = start; j < start + pagesNeeded; ++j) {
-                    memoryMap[j] = true;  // Mark pages as allocated
-                    uint32_t pfn = j;
-                    uint32_t vpn = startAddress / minPageSize + (j - start);
-                    // uint32_t pdi = vpn >> pteIndexBits;
-
-                    // what should pageDirectoryBaseAddress be
-                    //uint32_t pdeAddress = pageDirectoryBaseAddress + (pdi * sizeOfPDE);
-                    runningProc -> pageTable.setMapping(size, vpn, pfn);
-                }
-                return startAddress;
-            }
-        } else {
-            freePages = 0;
-        }
-    }
-    if (size == minPageSize) {
-        throw runtime_error("Not enough memory to allocate");
-    } else {
-        allocateMemory(size / 2);
-        allocateMemory(size / 2);
+    auto frames = findPhysicalFrames(size);
+    uint32_t vpn =  runningProc->heap;
+    for (auto p : frames) {
+        auto pfn = p.first;
+        auto size = p.second;
+        runningProc->pageTable.setMapping(size, vpn, pfn);
+        vpn += size / minPageSize;
     }
 }
 
@@ -170,42 +144,12 @@ void handleTLBMiss(uint32_t virtualAddress) {
 */
 
 uint32_t os::swapInPage(uint32_t vpn, uint32_t size) {
-    size_t pagesNeeded = size / minPageSize;
-
-    if (totalFreeSize - size < low_watermark) {
-        // Swap out pages to maintain free memory above the low watermark
-        uint32_t sizeTobeFree = high_watermark - (totalFreeSize - size);
-        swapOutToMeetWatermark(sizeTobeFree);
-    }
-
-    size_t freePages = 0;
-    size_t start = 0;
-
-    for (size_t i = 0; i < memoryMap.size(); ++i) {
-        if (!memoryMap[i]) { // If the page is free
-            if (freePages == 0 && i % (size / minPageSize) == 0) start = i;
-            freePages++;
-            if (freePages == pagesNeeded) {
-                size_t startAddress = runningProc->heap;
-                runningProc->allocateMem(size);  // Update the process's heap top
-
-                for (size_t j = start; j < start + pagesNeeded; ++j) {
-                    memoryMap[j] = true;  // Mark pages as allocated
-                    uint32_t pfn = j;
-                    uint32_t vpn = startAddress / minPageSize + (j - start);
-                    runningProc -> pageTable.setMapping(size, vpn, pfn);
-                }
-                return startAddress;
-            }
-        } else {
-            freePages = 0;
-        }
-    }
-    if (size == minPageSize) {
-        throw runtime_error("Not enough memory to allocate");
-    } else {
-        swapInPage(vpn, size / 2);
-        swapInPage(vpn + size / 2, size / 2);
+    auto frames = findPhysicalFrames(size);
+    for (auto p : frames) {
+        auto pfn = p.first;
+        auto size = p.second;
+        runningProc->pageTable.setMapping(size, vpn, pfn);
+        vpn += size / minPageSize;
     }
 }
 
@@ -261,6 +205,42 @@ void os::switchToProcess(uint32_t pid) {
         // Process not found, create a new one
         createProcess(pid);
         runningProc = &processes.back();
+    }
+}
+
+vector<pair<uint32_t, uint32_t> > os::findPhysicalFrames(uint32_t size) {
+    size_t pagesNeeded = size / minPageSize;
+    size_t freePages = 0;
+    size_t start = 0;
+    vector<pair<uint32_t, uint32_t> > ret;
+
+    for (size_t i = 0; i < memoryMap.size(); ++i) {
+        if (!memoryMap[i]) { // If the page is free
+            if (freePages == 0 && i % (size / minPageSize) == 0) start = i;
+            freePages++;
+            if (freePages == pagesNeeded) {
+                size_t startAddress = runningProc->heap;
+                runningProc->allocateMem(size);  // Update the process's heap top
+
+                for (size_t j = start; j < start + pagesNeeded; ++j) {
+                    memoryMap[j] = true;  // Mark pages as allocated
+                    uint32_t pfn = j;
+                }
+                ret.push_back(make_pair(startAddress, size));
+                return ret;
+            }
+        } else {
+            freePages = 0;
+        }
+    }
+    if (size == minPageSize) {
+        throw runtime_error("Not enough memory to allocate");
+    } else {
+        auto temp = findPhysicalFrames(size / 2);
+        ret.insert(ret.end(), temp.begin(), temp.end());
+        temp = findPhysicalFrames(size / 2);
+        ret.insert(ret.end(), temp.begin(), temp.end());
+        return ret;
     }
 }
 

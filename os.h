@@ -39,6 +39,7 @@ public:
     uint32_t accessHeap(uint32_t baseAddress);
     uint32_t accessCode(uint32_t baseAddress);
     void switchToProcess(uint32_t pid);
+    vector<pair<uint32_t, uint32_t> > findPhysicalFrames(uint32_t size);
 };
 
 #endif // OS_H
