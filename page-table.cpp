@@ -7,126 +7,83 @@
 
 using namespace std;
 
+PTE::PTE(uint32_t vpn, uint32_t pfn, uint32_t page_size): vpn(vpn), pfn(pfn), page_size(page_size),
+    present(true), valid(true) {}
+
+PTE::PTE(): present(false), valid(false) {}
+
+const int pdeOffset = 10;   // assuming VPN is 20 bits and PDE & PTE index are 10 bits
+const uint32_t tenBitsMask = 0b1111111111;
+const uint32_t minPageSize = 4096;
 
 // 1. constructor
 //    input: pid
 //    initialize page table，vectorOfPDEs, vectorOfPTEs
 TwoLevelPageTable::TwoLevelPageTable(int pidGiven) {
     pid = pidGiven;
+    for (uint32_t vpnPdeBits = 0; vpnPdeBits <= 0b1111111111; vpnPdeBits++) {
+        mapToPDEs[vpnPdeBits] = map<uint32_t, PTE>();
+    }
 }
+
 
 // 2. setMapping
 //    input: pageSize, vpn, pfn
 //    use vpn to get pde index (use some simplified rule?), vectorOfPDEs[pdeIndex] saves valid bit, present bit and ptePfn
 //    use ptePfn to get pte index (use some simplified rule?), vectorOfPTEs[pteIndex] saves valid bit, present bit and pfn??
 void TwoLevelPageTable::setMapping(uint32_t pageSize, uint32_t vpn, uint32_t pfn) {
-    vpnAndPageSize[vpn] = pageSize;
-    int pageSizeBits = log2(pageSize);
-    int vpnBits = virtualMemBits - pageSizeBits;
-    uint32_t numPTEs = pageSize / 4096;
+    uint32_t numPTEs = pageSize / minPageSize;
+    uint32_t numPDEs = numPTEs / 1024 + (numPTEs % 1024 == 0? 0: 1);
+    uint32_t pdeIdx = vpn >> pdeOffset;
 
-    uint32_t pde = mapToPDEs[vpn]; //presentBit, validBit, ptePfn
-    int validBitPDE = pde >> pfnBits;
-    int presentBitPDE = pde >> (pfnBits + 1);
-
-    if (validBitPDE == 1) {
-        cout << "Seg fault." << endl;
-        return;
-    }
-    if (presentBitPDE == 1) {
-        cout << "Page fault." << endl;
-        return;
-    }
-
-    for(uint32_t i = 0; i < numPTEs; i++){
-
-    }
-    uint32_t ptePfn = vpn;
-    mapToPDEs[vpn] = (0b11 << pfnBits) | ptePfn;
-
-    for (uint32_t i = ptePfn; i < ptePfn + numPTEs; i++) {
-        uint32_t pte = mapToPTEs[ptePfn]; //presentBit, validBit, pfn, page size
-        int validBitPTE = pte >> pfnBits;
-        int presentBitPTE = pte >> (pfnBits + 1);
-
-        if (validBitPTE == 1) {
-            cout << "Seg fault." << endl;
-            return;
+    for (uint32_t i = pdeIdx; i < pdeIdx + numPDEs; i++) {
+        auto& mapToPte = mapToPDEs[pdeIdx]; //presentBit, validBit, ptePfn
+        uint32_t pteIdx = vpn & tenBitsMask;
+        for (uint32_t j = pteIdx; j < pteIdx + numPTEs; j++) {
+            mapToPte.insert_or_assign(j, PTE(vpn, pfn, pageSize));
         }
-        if (presentBitPTE == 1) {
-            cout << "Page fault." << endl;
-            return;
-        }
-
-        mapToPTEs[ptePfn] = (0b11 << pfnBits) | pfn;
     }
 }
 
 // 3. translate
 //    input: virtual address
 //    output: pte, page size
-pair<uint32_t,uint32_t> TwoLevelPageTable::translate(uint32_t vaddr) {
+PTE TwoLevelPageTable::translate(uint32_t vaddr) {
     uint32_t vpn = vaddr >> 12;
-    uint32_t pde = mapToPDEs[vpn];
-    int validBitPDE = pde >> pfnBits;
-    int presentBitPDE = pde >> (pfnBits + 1);
+    auto& mapToPte = mapToPDEs[vpn >> pdeOffset];
 
-    if (validBitPDE == 0) {
-        throw runtime_error("Valid bit of pde is 0.");
-    }
-    if (presentBitPDE == 0) {
-        throw runtime_error("Present bit of pde is 0.");
-    }
+    uint32_t pteIdx = vpn & tenBitsMask;
+    PTE pte = mapToPte[pteIdx];
 
-    uint32_t ptePfn = pde & ((1 << pfnBits) - 1);
-    uint32_t pte = mapToPTEs[ptePfn];
-    int validBitPTE = pte >> pfnBits;
-    int presentBitPTE = pte >> (pfnBits + 1);
-
-    if (validBitPTE == 0) {
+    if (!pte.valid) {
         throw runtime_error("Valid bit of pte is 0.");
     }
-    if (presentBitPTE == 0) {
+    if (!pte.present) {
+        // TODO: Call OS swap in method
         throw runtime_error("Present bit of pte is 0.");
     }
-    return make_pair(pte, vpnAndPageSize[vpn]);
-
-    //uint32_t pfn = pte & ((1 << pfnBits) - 1);
-    //return (pfn);
+    return pte;
 }
 
 // 4. free
 //    remove mapping given vpn
 void TwoLevelPageTable::free(uint32_t vpn) {
-    uint32_t pageSize = vpnAndPageSize[vpn];
-    uint32_t numPTEs = pageSize / 4096;
-    uint32_t pde = mapToPDEs[vpn];
-    int validBitPDE = pde >> pfnBits;
-    int presentBitPDE = pde >> (pfnBits + 1);
-
-    if (validBitPDE == 0) {
-        throw runtime_error("Valid bit of pde is 0. Nothing to free.");
+    uint32_t firstPteIdx = vpn & tenBitsMask;
+    auto first = mapToPDEs[vpn >> pdeOffset][firstPteIdx];
+    if (!first.valid) {
+        return;
     }
-    if (presentBitPDE == 0) {
-        throw runtime_error("Present bit of pde is 0.");
-    }
-    uint32_t ptePfn = pde & ((1 << pfnBits) - 1);
+    uint32_t numPTEs = first.page_size / minPageSize;
+    uint32_t numPDEs = numPTEs / 1024 + (numPTEs % 1024 == 0? 0: 1);
+    uint32_t pdeIdx = vpn >> pdeOffset;
 
-    for (uint32_t i = ptePfn; i < ptePfn + numPTEs; i++) {
-        uint32_t pte = mapToPTEs[ptePfn];
-        int validBitPTE = pte >> pfnBits;
-        int presentBitPTE = pte >> (pfnBits + 1);
-
-        if (validBitPTE == 0) {
-            throw runtime_error("Valid bit of pte is 0. Nothing to free.");
+    for (uint32_t i = pdeIdx; i < pdeIdx + numPDEs; i++) {
+        auto& mapToPte = mapToPDEs[pdeIdx]; //presentBit, validBit, ptePfn
+        uint32_t pteIdx = vpn & tenBitsMask;
+        for (uint32_t j = pteIdx; j < pteIdx + numPTEs; j++) {
+            mapToPte.erase(j);
         }
-        if (presentBitPTE == 0) {
-            throw runtime_error("Present bit of pte is 0.");
-        }
-
-        mapToPTEs.erase(ptePfn);
     }
-    mapToPDEs.erase(vpn);
 }
 
 
