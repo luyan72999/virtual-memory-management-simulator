@@ -27,6 +27,9 @@ os::os(size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven,
       totalFreeSize(-1), tlb(Tlb(64, 1024, 4)) {
 }
 
+os::~os() {
+}
+
 
 uint32_t os::allocateMemory(uint32_t size) {
     if (totalFreeSize - size < low_watermark) {
@@ -36,32 +39,35 @@ uint32_t os::allocateMemory(uint32_t size) {
     }
 
     auto frames = findPhysicalFrames(size);
-    uint32_t vpn =  runningProc->heap;
+    uint32_t vpn = (runningProc->heap) >> 12;   // 12 is 4k page's intra-page offset bits
     for (auto p : frames) {
         auto pfn = p.first;
-        auto size = p.second;
-        runningProc->pageTable.setMapping(size, vpn, pfn);
-        vpn += size / minPageSize;
+        auto frame_size = p.second;
+        runningProc->pageTable.setMapping(frame_size, vpn, pfn);
+        vpn += frame_size / minPageSize;
     }
+    runningProc->allocateMem(size);
 }
 
 void os::freeMemory(uint32_t baseAddress) {
     uint32_t sizeToFree = (runningProc->heap - baseAddress);
     uint32_t pagesToFree = sizeToFree / minPageSize;
     uint32_t sizeFreed = 0;
-    uint32_t vpn = baseAddress;
+    uint32_t vpn = baseAddress >> 12;
 
     while (sizeFreed != sizeToFree) {
         auto p = runningProc->pageTable.translate(baseAddress);
         runningProc->pageTable.free(vpn);
-        uint32_t basePfn = p.first, pageSize = p.second;
+        uint32_t basePfn = p.pfn, pageSize = p.page_size;
         for (uint32_t pfn = basePfn; pfn < basePfn + pageSize / minPageSize;
              pfn++) {
             memoryMap[pfn] = false;
         }
-        vpn += pageSize;
+        vpn += pageSize >> 12;
         sizeFreed += pageSize;
+        baseAddress += pageSize;
     }
+    runningProc->freeMem(sizeToFree);
 
     // Invalidate TLB entry for this VPN
 }
@@ -71,6 +77,7 @@ uint32_t os::createProcess(long int pid) {
 
     uint32_t codeSize = 4 * 1024 * 1024;
     newProcess.code = codeSize - 1;
+    newProcess.heap = codeSize;
     uint32_t code_vpn = 0;
     auto code_frames = findPhysicalFrames(codeSize);
     for (auto &p : code_frames) {
@@ -119,12 +126,11 @@ void os::swapOutToMeetWatermark(uint32_t sizeToFree) {
         uint32_t endAddress = proc.heap;
 
         while (currentAddress < endAddress && freedMemory < sizeToFree) {
-            pair<uint32_t, uint32_t> pteAndPageSize =
+            auto pteAndPageSize =
                 runningProc->pageTable.translate(currentAddress);
-            uint32_t pageSize = pteAndPageSize.second;
-            uint32_t pte = pteAndPageSize.first;
+            uint32_t pageSize = pteAndPageSize.page_size;
+            uint32_t pfn = pteAndPageSize.pfn;
             uint32_t vpn = currentAddress / pageSize;
-            uint32_t pfn = pte & ((1 << pfnBits) - 1);
 
             swapOutPage(vpn, pfn); // Call swapOutPage for the calculated VPN
 
@@ -197,7 +203,6 @@ void os::handleInstruction(const string& instruction, uint32_t value, uint32_t p
     } else if (instruction == "switch") {
       switchToProcess(pid);
     }
-    cout << instruction << " " << hex << value << " " << result << endl;
 }
 
 uint32_t os::accessStack(uint32_t address) {
@@ -236,17 +241,16 @@ vector<pair<uint32_t, uint32_t> > os::findPhysicalFrames(uint32_t size) {
 
     for (size_t i = 0; i < memoryMap.size(); ++i) {
         if (!memoryMap[i]) { // If the page is free
-            if (freePages == 0 && i % (size / minPageSize) == 0) start = i;
+            if (i % (size / minPageSize) != 0) {
+                continue;
+            }
+            if (freePages == 0) start = i;
             freePages++;
             if (freePages == pagesNeeded) {
-                size_t startAddress = runningProc->heap;
-                runningProc->allocateMem(size);  // Update the process's heap top
-
                 for (size_t j = start; j < start + pagesNeeded; ++j) {
                     memoryMap[j] = true;  // Mark pages as allocated
-                    uint32_t pfn = j;
                 }
-                ret.push_back(make_pair(startAddress, size));
+                ret.push_back(make_pair(start, size));
                 return ret;
             }
         } else {

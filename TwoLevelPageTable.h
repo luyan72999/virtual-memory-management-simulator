@@ -18,22 +18,33 @@ using namespace std;
  * Address space 32bit
  * page size from 4KB to 1GB
  */
+
+
+struct PTE {
+    uint32_t vpn;
+    uint32_t pfn;
+    uint32_t page_size;
+    bool present;
+    bool valid;
+    PTE(uint32_t vpn, uint32_t pfn, uint32_t page_size);
+    PTE();
+};
+
+
 class TwoLevelPageTable {
 private:
     uint32_t pid;
     int physMemBits = 32;
     int virtualMemBits = 32;
     int pfnBits = physMemBits - 12;
-    map<uint32_t, uint32_t> mapToPDEs;
-    map<uint32_t, uint32_t> mapToPTEs;
-    map<uint32_t, uint32_t> vpnAndPageSize;
+    map<uint32_t, map<uint32_t, PTE>> mapToPDEs;
 
 public:
     TwoLevelPageTable(int pidGiven);
 
     void setMapping(uint32_t pageSize, uint32_t vpn, uint32_t pfn);
 
-    pair<uint32_t, uint32_t> translate(uint32_t vpn);
+    PTE translate(uint32_t vpn);
 
     void free(uint32_t vpn);
 };

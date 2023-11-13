@@ -27,6 +27,7 @@ private:
 
 public:
     os(size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven, uint32_t low_watermarkGiven);
+    ~os();
 
     uint32_t allocateMemory(uint32_t size);
     void freeMemory(uint32_t baseAddress);

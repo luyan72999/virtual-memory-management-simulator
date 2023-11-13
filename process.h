@@ -16,6 +16,7 @@ public:
     process(long int pidGiven);
 
     void allocateMem(uint32_t allocatedSize);
+    void freeMem(uint32_t freedSize);
 };
 
 #endif

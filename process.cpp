@@ -12,6 +12,11 @@ void process::allocateMem(uint32_t allocatedSize) {
     size += allocatedSize;
 }
 
+void process::freeMem(uint32_t freedSize) {
+    heap -= freedSize;
+    size -= freedSize;
+}
+
 // free  input: size
 // pagetable per process
 // every time os allocate memory, 
