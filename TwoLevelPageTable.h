@@ -19,6 +19,7 @@ using namespace std;
  * page size from 4KB to 1GB
  */
 
+extern int memory_hit;
 
 struct PTE {
     uint32_t vpn;

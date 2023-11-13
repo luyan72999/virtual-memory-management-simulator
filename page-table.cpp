@@ -12,6 +12,7 @@ PTE::PTE(uint32_t vpn, uint32_t pfn, uint32_t page_size): vpn(vpn), pfn(pfn), pa
 
 PTE::PTE(): present(false), valid(false) {}
 
+int memory_hit = 0;
 const int pdeOffset = 10;   // assuming VPN is 20 bits and PDE & PTE index are 10 bits
 const uint32_t tenBitsMask = 0b1111111111;
 const uint32_t minPageSize = 4096;
@@ -54,6 +55,7 @@ PTE TwoLevelPageTable::translate(uint32_t vaddr) {
 
     uint32_t pteIdx = vpn & tenBitsMask;
     PTE pte = mapToPte[pteIdx];
+    memory_hit += 2;
 
     if (!pte.valid) {
         throw runtime_error("Valid bit of pte is 0.");
