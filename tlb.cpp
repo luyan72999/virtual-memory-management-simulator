@@ -85,7 +85,7 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
     }
   }
   // otherwise, l2 miss, go to page table with virtual addr and get a page table entry
-  return -1;
+  throw logic_error("TLB miss");
 }
 
 

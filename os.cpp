@@ -206,16 +206,45 @@ void os::handleInstruction(const string& instruction, uint32_t value, uint32_t p
 }
 
 uint32_t os::accessStack(uint32_t address) {
-    // Implementation for accessing stack
-    return tlb.look_up(address, runningProc->pid);
+    try {
+        auto addr = tlb.look_up(address, runningProc->pid);
+        return addr;
+    } catch (const exception& e) {
+        auto pte = runningProc->pageTable.translate(address >> 12);
+        auto tlbEntry = tlb.create_tlb_entry(pte.pfn, pte.page_size, address, runningProc->pid);
+        tlb.l1_insert(tlbEntry);
+        tlb.l2_insert(tlbEntry);
+        auto addr = tlb.look_up(address, runningProc->pid);
+        return addr;
+    }
 }
 
 uint32_t os::accessHeap(uint32_t address) {
-    return tlb.look_up(address, runningProc->pid);
+    try {
+        auto addr = tlb.look_up(address, runningProc->pid);
+        return addr;
+    } catch (const exception& e) {
+        auto pte = runningProc->pageTable.translate(address >> 12);
+        auto tlbEntry = tlb.create_tlb_entry(pte.pfn, pte.page_size, address, runningProc->pid);
+        tlb.l1_insert(tlbEntry);
+        tlb.l2_insert(tlbEntry);
+        auto addr = tlb.look_up(address, runningProc->pid);
+        return addr;
+    }
 }
 
 uint32_t os::accessCode(uint32_t address) {
-    return tlb.look_up(address, runningProc->pid);
+    try {
+        auto addr = tlb.look_up(address, runningProc->pid);
+        return addr;
+    } catch (const exception& e) {
+        auto pte = runningProc->pageTable.translate(address >> 12);
+        auto tlbEntry = tlb.create_tlb_entry(pte.pfn, pte.page_size, address, runningProc->pid);
+        tlb.l1_insert(tlbEntry);
+        tlb.l2_insert(tlbEntry);
+        auto addr = tlb.look_up(address, runningProc->pid);
+        return addr;
+    }
 }
 
 void os::switchToProcess(uint32_t pid) {
