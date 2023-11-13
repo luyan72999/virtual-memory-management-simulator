@@ -40,8 +40,6 @@ public:
   // destructor
   ~Tlb();
 
-  void init();
-
   // pfn and page_size is obtained from page table entry obj
   TlbEntry create_tlb_entry(uint32_t pfn, uint32_t page_size, uint32_t virtual_addr, uint32_t process_id);
 

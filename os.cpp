@@ -1,6 +1,7 @@
 #include "TwoLevelPageTable.h"
 #include "process.h"
 #include "os.h"
+#include "tlb.h"
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -66,11 +67,27 @@ void os::freeMemory(uint32_t baseAddress) {
 uint32_t os::createProcess(long int pid) {
     process newProcess(pid);
 
-    uint32_t codeSize = 4 * 1024 * 1024; 
-    newProcess.code = codeSize - 1; 
+    uint32_t codeSize = 4 * 1024 * 1024;
+    newProcess.code = codeSize - 1;
+    uint32_t code_vpn = 0;
+    auto code_frames = findPhysicalFrames(codeSize);
+    for (auto &p : code_frames) {
+        uint32_t pfn = p.first;
+        uint32_t size = p.second;
+        newProcess.pageTable.setMapping(size, code_vpn, pfn);
+        code_vpn += size / minPageSize;
+    }
 
     uint32_t stackSize = 4 * 1024 * 1024;
+    auto stack_frames = findPhysicalFrames(stackSize);
     newProcess.stack = 0xFFFFFFFF - stackSize + 1;
+    uint32_t stack_vpn = newProcess.stack / minPageSize;
+    for (auto &p : stack_frames) {
+        uint32_t pfn = p.first;
+        uint32_t size = p.second;
+        newProcess.pageTable.setMapping(size, stack_vpn, pfn);
+        stack_vpn += size / minPageSize;
+    }
     processes.push_back(newProcess);
 
     return pid;

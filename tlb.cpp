@@ -7,7 +7,19 @@ TlbEntry::TlbEntry(uint32_t process_id, uint32_t page_size, uint32_t vpn, uint32
 
 //two-level tlb
 // constructor
-Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) : l1_size(l1_size), l2_size(l2_size), max_process_allowed(max_process_allowed) {}
+Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) : l1_size(l1_size), l2_size(l2_size), max_process_allowed(max_process_allowed) {
+  //by default: l1 size 64, l2 size 1024, max process allowed is 4
+  l1_list = new vector<TlbEntry>();
+  l2_list = new vector<vector<TlbEntry>*>();
+
+  l2_size_per_process = l2_size / max_process_allowed;
+  for (int i = 0; i < max_process_allowed; i++) {
+    l2_list->push_back(new vector<TlbEntry>());
+  }
+  
+  l2_process = new vector<uint32_t>();
+  srand(time(NULL));
+}
 
 // Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) {
 //   l1_size = l1_size;
@@ -23,20 +35,6 @@ Tlb::~Tlb() {
   }
   delete l2_list;
   delete l2_process;
-}
-
-void Tlb::init() {
-  //by default: l1 size 64, l2 size 1024, max process allowed is 4
-  l1_list = new vector<TlbEntry>();
-  l2_list = new vector<vector<TlbEntry>*>();
-
-  l2_size_per_process = l2_size / max_process_allowed;
-  for (int i = 0; i < max_process_allowed; i++) {
-    l2_list->push_back(new vector<TlbEntry>());
-  }
-  
-  l2_process = new vector<uint32_t>();
-  srand(time(NULL));
 }
 
 
