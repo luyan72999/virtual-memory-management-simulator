@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 import re
 import statistics
@@ -36,22 +38,82 @@ def extract_tlb_hit_rates(file_path):
         return None, None,None
 
 
-# Example usage
-file_path = 'results.txt'  # Replace with the actual file path
-rates_with_20, rates_with_50,rates_with_90 = extract_tlb_hit_rates(file_path)
+# case 1: one-level TLB and 4KB page size
+file_path = 'results_case1.txt'
+rates_with_20_case1, rates_with_50_case1,rates_with_90_case1 = extract_tlb_hit_rates(file_path)
+
+# case 2: one-level TLB and variable page size
+file_path = 'results_case2.txt'
+rates_with_20_case2, rates_with_50_case2,rates_with_90_case2 = extract_tlb_hit_rates(file_path)
+
+# case 3: two-level TLB and 4KB page size
+file_path = 'results_case3.txt'
+rates_with_20_case3, rates_with_50_case3,rates_with_90_case3 = extract_tlb_hit_rates(file_path)
+
+# case 4: two-level TLB and variable page size
+file_path = 'results_case4.txt'
+rates_with_20_case4, rates_with_50_case4,rates_with_90_case4 = extract_tlb_hit_rates(file_path)
 
 
 x = ["0.2","0.5","0.9"]
-y = [rates_with_20, rates_with_50,rates_with_90]
+case1 = [rates_with_20_case1, rates_with_50_case1,rates_with_90_case1]
+case2 = [rates_with_20_case2, rates_with_50_case2,rates_with_90_case2]
+case3 = [rates_with_20_case3, rates_with_50_case3,rates_with_90_case3]
+case4 = [rates_with_20_case4, rates_with_50_case4,rates_with_90_case4]
 
-bar_width = 1
-plt.bar(x, y, color='orange')
+indices = np.arange(len(x))
+
+# figure with 4 cases
+bar_width = 0.2
+
+plt.figure(figsize=(10, 5))
+plt.bar(indices - 1.5*bar_width, case1, bar_width, color='skyblue', label='one level TLB and 4KB page size')
+plt.bar(indices - 0.5*bar_width, case2, bar_width, color='slateblue', label='one level TLB and variable page size')
+plt.bar(indices + 0.5*bar_width, case3, bar_width, color='gray', label='two level TLB and 4KB page size')
+plt.bar(indices + 1.5*bar_width, case4, bar_width, color='orange', label='two level TLB and variable page size')
+
 
 plt.xlabel('Locality')
 plt.ylabel('TLB hit rate')
-plt.title('Two-level TLB and Only Support 4KB Page Size')
+# plt.title('Two-level TLB and Only Support 4KB Page Size')
 
-plt.xticks(x)
+plt.xticks(indices,x)
+plt.legend()
+plt.ylim(0.7, plt.ylim()[1])
+
+plt.savefig('plot4cases.png', dpi=300)
 
 
-plt.savefig('Two_TLB_4KB.png', dpi=300)
+# figure showing 4kb/variable, based on two level TLB
+bar_width = 0.4
+plt.figure(figsize=(8, 5))
+plt.bar(indices - 0.5*bar_width, case3, bar_width, color='gray', label='4KB page size')
+plt.bar(indices + 0.5*bar_width, case4, bar_width, color='orange', label='variable page size')
+
+
+plt.xlabel('Locality')
+plt.ylabel('TLB hit rate')
+plt.title('Supporting Variable Page Sizes VS Only 4KB Page Size')
+
+plt.xticks(indices,x)
+plt.legend(loc='upper left')
+plt.ylim(0.7, plt.ylim()[1])
+
+plt.savefig('plot_compare_pageSize.png', dpi=300)
+
+# figure showing one/two level TLB, based on variable page sizes
+bar_width = 0.4
+plt.figure(figsize=(8, 5))
+plt.bar(indices - 0.5*bar_width, case2, bar_width, color='slateblue', label='one level TLB')
+plt.bar(indices + 0.5*bar_width, case4, bar_width, color='orange', label='two level TLB')
+
+
+plt.xlabel('Locality')
+plt.ylabel('TLB hit rate')
+plt.title('One-Level TLB VS Two-Level TLB')
+
+plt.xticks(indices,x)
+plt.legend(loc='upper left')
+plt.ylim(0.7, plt.ylim()[1])
+
+plt.savefig('plot_compare_TLB.png', dpi=300)
