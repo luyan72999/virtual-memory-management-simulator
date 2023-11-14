@@ -47,7 +47,6 @@ uint32_t os::allocateMemory(uint32_t size) {
         vpn += frame_size / minPageSize;
     }
     runningProc->allocateMem(size);
-    cout << "Process " << runningProc->pid << " owns " << runningProc->heapPages << " pages" << endl;
 }
 
 void os::freeMemory(uint32_t baseAddress) {
