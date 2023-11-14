@@ -13,6 +13,9 @@
 #include <stdexcept>
 
 extern int memory_access_attempts;
+extern int stack_miss;
+extern int heap_miss;
+extern int code_miss;
 
 class os {
 private:

@@ -205,16 +205,32 @@ void os::handleInstruction(const string& instruction, uint32_t value, uint32_t p
     }
 }
 
+int stack_miss = 0;
+int heap_miss = 0;
+int code_miss = 0;
+
 uint32_t os::accessStack(uint32_t address) {
-    return accessMemory(address);
+    // return accessMemory(address);
+    int temp = TLB_miss;
+    accessMemory(address);
+    if (temp != TLB_miss)
+        stack_miss++;
 }
 
 uint32_t os::accessHeap(uint32_t address) {
-    return accessMemory(address);
+    // return accessMemory(address);
+    int temp = TLB_miss;
+    accessMemory(address);
+    if (temp != TLB_miss)
+        heap_miss++;
 }
 
 uint32_t os::accessCode(uint32_t address) {
-    return accessMemory(address);
+    // return accessMemory(address);
+    int temp = TLB_miss;
+    accessMemory(address);
+    if (temp != TLB_miss)
+        code_miss++;
 }
 
 uint32_t os::accessMemory(uint32_t address) {
@@ -262,7 +278,7 @@ vector<pair<uint32_t, uint32_t> > os::findPhysicalFrames(uint32_t size) {
         ret.insert(ret.end(), temp.begin(), temp.end());
         return ret;
     }
-    */
+     */
 
     for (size_t i = 0; i < memoryMap.size(); ++i) {
         if (!memoryMap[i]) { // If the page is free

@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 
-int main() {
+int main(int argc, char *argv[]) {
     size_t memorySize = 1ULL << 32; 
     size_t diskSize = 1024 * 1024 * 1024 * 10; 
     uint32_t high_watermark = 200 * 1024 * 1024;
@@ -15,7 +15,7 @@ int main() {
 
     cout << "OS initialized" << endl;
 
-    ifstream inputFile("tests.txt");
+    ifstream inputFile(argv[1]);
     if (!inputFile) {
         cerr << "Error: Unable to open file." << endl;
         return 1;
@@ -23,7 +23,7 @@ int main() {
 
     string line;
     while (getline(inputFile, line)) {
-        cout << "Executing command: " << line << endl;
+        //cout << "Executing command: " << line << endl;
         istringstream iss(line);
         uint32_t pid;
         string instruction;
@@ -42,9 +42,11 @@ int main() {
     }
 
     cout << "Total memory access attempts: " << memory_access_attempts << endl;
-    cout << "L1 TLB hits: " << L1_hit << endl;
-    cout << "L2 TLB hits: " << L2_hit << endl;
-    cout << "Memory hits: " << memory_hit << endl;
+    cout << "Code miss:    " << code_miss << endl;
+    cout << "Stack miss:   " << stack_miss << endl;
+    cout << "Heap miss:    " << heap_miss << endl;
+    cout << "TLB misses:   " << TLB_miss << endl;
+    cout << "TLB hit rate: " << 1.0 * (memory_access_attempts - TLB_miss) / memory_access_attempts << endl;
 
     inputFile.close();
     return 0;

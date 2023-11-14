@@ -48,7 +48,7 @@ TlbEntry Tlb::create_tlb_entry(uint32_t pfn, uint32_t page_size, uint32_t virtua
   // calculate mask: number of bits to right shift to extract vpn.
   // e.g. set mask to 12 when page size is 4KB and physical mem is 4GB (thus 20-bit vpn).
   uint32_t mask = ~(page_size - 1);
-  uint32_t vpn = virtual_addr & mask >> 12;
+  uint32_t vpn = (virtual_addr & mask) >> 12;
 
   TlbEntry tlb_entry = TlbEntry(process_id, page_size, vpn, pfn);
     return tlb_entry;
@@ -63,7 +63,7 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
   for (int i = 0; i < l1_list->size(); i++) {
     uint32_t page_size = (*l1_list)[i].page_size;
     uint32_t mask = ~(page_size - 1);
-    uint32_t vpn = virtual_addr & mask >> 12;
+    uint32_t vpn = (virtual_addr & mask) >> 12;
     if (vpn == (*l1_list)[i].vpn) {
       L1_hit++;
       return (*l1_list)[i].pfn;
@@ -87,7 +87,7 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
       TlbEntry entry = (*((*l2_list)[i]))[j];
       uint32_t page_size = entry.page_size;
       uint32_t mask = ~(page_size - 1);
-      uint32_t vpn = virtual_addr & mask >> 12;
+      uint32_t vpn = (virtual_addr & mask) >> 12;
       if (vpn == entry.vpn) {
         // found in l2, insert this one into l1
         l1_insert(entry);
