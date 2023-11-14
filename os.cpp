@@ -253,6 +253,17 @@ vector<pair<uint32_t, uint32_t> > os::findPhysicalFrames(uint32_t size) {
     size_t start = 0;
     vector<pair<uint32_t, uint32_t> > ret;
 
+    // If only 4K pages are supported, uncomment this
+    /*
+    if (size != minPageSize) {
+        auto temp = findPhysicalFrames(size / 2);
+        ret.insert(ret.end(), temp.begin(), temp.end());
+        temp = findPhysicalFrames(size / 2);
+        ret.insert(ret.end(), temp.begin(), temp.end());
+        return ret;
+    }
+    */
+
     for (size_t i = 0; i < memoryMap.size(); ++i) {
         if (!memoryMap[i]) { // If the page is free
             if (i % (size / minPageSize) != 0) {

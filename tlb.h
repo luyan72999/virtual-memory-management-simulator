@@ -12,6 +12,7 @@ using namespace std;
 
 extern int L1_hit;
 extern int L2_hit;
+extern int TLB_miss;
 
 class TlbEntry {
 public:
