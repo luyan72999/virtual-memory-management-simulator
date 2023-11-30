@@ -19,7 +19,7 @@ const uint32_t minPageSize = 4096;
 
 // 1. constructor
 //    input: pid
-//    initialize page table，vectorOfPDEs, vectorOfPTEs
+//    initialize page table，mapToPDEs
 TwoLevelPageTable::TwoLevelPageTable(int pidGiven) {
     pid = pidGiven;
     for (uint32_t vpnPdeBits = 0; vpnPdeBits <= 0b1111111111; vpnPdeBits++) {
@@ -30,8 +30,6 @@ TwoLevelPageTable::TwoLevelPageTable(int pidGiven) {
 
 // 2. setMapping
 //    input: pageSize, vpn, pfn
-//    use vpn to get pde index (use some simplified rule?), vectorOfPDEs[pdeIndex] saves valid bit, present bit and ptePfn
-//    use ptePfn to get pte index (use some simplified rule?), vectorOfPTEs[pteIndex] saves valid bit, present bit and pfn??
 void TwoLevelPageTable::setMapping(uint32_t pageSize, uint32_t vpn, uint32_t pfn) {
     uint32_t numPTEs = pageSize / minPageSize;
     uint32_t numPDEs = numPTEs / 1024 + (numPTEs % 1024 == 0? 0: 1);
@@ -41,14 +39,14 @@ void TwoLevelPageTable::setMapping(uint32_t pageSize, uint32_t vpn, uint32_t pfn
         auto& mapToPte = mapToPDEs[pdeIdx]; //presentBit, validBit, ptePfn
         uint32_t pteIdx = vpn & tenBitsMask;
         for (uint32_t j = pteIdx; j < pteIdx + numPTEs; j++) {
-            mapToPte.insert_or_assign(j, PTE(vpn, pfn, pageSize));
+                mapToPte.insert_or_assign(j, PTE(vpn, pfn, pageSize));
         }
     }
 }
 
 // 3. translate
 //    input: virtual address
-//    output: pte, page size
+//    output: pte
 PTE TwoLevelPageTable::translate(uint32_t vaddr) {
     uint32_t vpn = vaddr >> 12;
     auto& mapToPte = mapToPDEs[vpn >> pdeOffset];
@@ -62,7 +60,11 @@ PTE TwoLevelPageTable::translate(uint32_t vaddr) {
     }
     if (!pte.present) {
         // TODO: Call OS swap in method
-        throw runtime_error("Present bit of pte is 0.");
+        // Done
+        os.swapInPage(vpn, pte.page_size);
+        pte = mapToPte[pteIdx];
+        memory_hit += 2;
+        //throw runtime_error("Present bit of pte is 0.");
     }
     return pte;
 }
