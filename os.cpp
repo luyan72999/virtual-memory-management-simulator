@@ -23,6 +23,7 @@ using namespace std;
 os::os(size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven,
        uint32_t low_watermarkGiven)
     : minPageSize(4096), memoryMap(memorySize / minPageSize, false),
+      diskMap(diskSize / minPageSize, false),
       high_watermark(high_watermarkGiven), low_watermark(low_watermarkGiven),
       totalFreeSize(-1), tlb(Tlb(64, 1024, 4)) {
 }
@@ -145,6 +146,13 @@ void os::swapOutToMeetWatermark(uint32_t sizeToFree) {
 void os::swapOutPage(uint32_t vpn, uint32_t pfnToSwapOut) {
     if (pfnToSwapOut < memoryMap.size() && memoryMap[pfnToSwapOut]) {
         //disk.push_back(pfnToSwapOut); // Store the page data on the disk
+        size_t diskBlock = findFreeDiskBlock();
+        if (diskBlock == -1) {
+            throw runtime_error("No free disk block found for swapping");
+        }
+
+        diskMap[diskBlock] = true; // Mark the disk block as used
+        pageToDiskMap[vpn] = diskBlock; 
         memoryMap[pfnToSwapOut] = false; // Free the page in physical memory
 
         // Update the map to reflect where the page is stored on disk
@@ -154,6 +162,16 @@ void os::swapOutPage(uint32_t vpn, uint32_t pfnToSwapOut) {
         // pt.update(vpn)
     }
 } 
+
+uint32_t os::findFreeDiskBlock() {
+    for (size_t i = 0; i < diskMap.size(); ++i) {
+        if (!diskMap[i]) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 
 
 /*
@@ -170,6 +188,8 @@ void handleTLBMiss(uint32_t virtualAddress) {
 */
 
 uint32_t os::swapInPage(uint32_t vpn, uint32_t size) {
+    uint32_t diskBlock = pageToDiskMap[vpn];
+    diskMap[diskBlock] = false;
     auto frames = findPhysicalFrames(size);
     for (auto p : frames) {
         auto pfn = p.first;
@@ -179,13 +199,13 @@ uint32_t os::swapInPage(uint32_t vpn, uint32_t size) {
     }
 }
 
-size_t os::findFreeFrame() {
-    for (size_t i = 0; i < memoryMap.size(); ++i) {
+uint32_t os::findFreeFrame() {
+    for (uint32_t i = 0; i < memoryMap.size(); ++i) {
         if (!memoryMap[i]) {
-            return i; // Free frame found
+            return i; 
         }
     }
-    return -1; // No free frame found
+    return -1; 
 }
 
 void os::handleInstruction(const string& instruction, uint32_t value, uint32_t pid) {
