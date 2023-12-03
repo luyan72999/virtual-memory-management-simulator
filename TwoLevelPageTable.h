@@ -48,6 +48,7 @@ public:
     PTE translate(uint32_t vpn);
 
     void free(uint32_t vpn);
+    void updatePresentBit(uint32_t vpn);
 };
 
 #endif // TWO_LEVEL_PAGE_TABLE_H

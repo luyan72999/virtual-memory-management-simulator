@@ -90,6 +90,23 @@ void TwoLevelPageTable::free(uint32_t vpn) {
     }
 }
 
+//5.update present bit when swap out
+void TwoLevelPageTable::updatePresentBit(uint32_t vpn) {
+    uint32_t firstPteIdx = vpn & tenBitsMask;
+    auto first = mapToPDEs[vpn >> pdeOffset][firstPteIdx];
+    uint32_t numPTEs = first.page_size / minPageSize;
+    uint32_t numPDEs = numPTEs / 1024 + (numPTEs % 1024 == 0? 0: 1);
+    uint32_t pdeIdx = vpn >> pdeOffset;
+
+    for (uint32_t i = pdeIdx; i < pdeIdx + numPDEs; i++) {
+        auto& mapToPte = mapToPDEs[pdeIdx]; //presentBit, validBit, ptePfn
+        uint32_t pteIdx = vpn & tenBitsMask;
+        for (uint32_t j = pteIdx; j < pteIdx + numPTEs; j++) {
+            mapToPte[j].present = false;
+        }
+    }
+}
+
 
 //for testing
 
