@@ -27,6 +27,14 @@ public:
   TlbEntry(uint32_t process_id, uint32_t page_size, uint32_t vpn, uint32_t pfn);
 };
 
+class PTEntry {
+public:
+  uint32_t page_size;
+  uint32_t pfn;
+
+  PTEntry(uint32_t page_size, uint32_t pfn);
+};
+
 //two-level tlb
 class Tlb {
 public:
@@ -36,7 +44,6 @@ public:
   uint32_t l2_size;
   uint32_t max_process_allowed; // max number of processes that can exist in l2, default 4
   uint32_t l2_size_per_process; // default 1024/4 = 256
-  vector<uint32_t>* l2_process; // extra data structure to track which processes are in L2 
 
   // constructor
 	Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed);
@@ -54,18 +61,19 @@ public:
   // upon TLB hit, assemble physical address: use pfn and offset to form a physicai address
   uint32_t assemble_physical_addr(TlbEntry tlb_entry, uint32_t virtual_addr);
 
-  // TLBs: insert a tlb entry into l1
+  // TLBs: insert a tlb entry into l1, random policy
   // return -1 if no replacement occurs, return the replaced index in l1 if replacement occurs.
   int l1_insert(TlbEntry entry);
-
+  // the following l1_insert() implememts a fifo policy. When calling the method, the parameter fifo can be any number (it's added only for method overloading)
+  int l1_insert(TlbEntry entry, int fifo);
   //flush all
   void l1_flush();
   
   // default: maximum 256 entries allowed per process
+  // random policy
   void l2_insert(TlbEntry entry);
-
-  // selective flushing
-  void l2_flush(vector<TlbEntry>* sub_vector);
+  // the following l2_insert() implememts a fifo policy. When calling the method, the parameter fifo can be any number (it's added only for method overloading)
+  void l2_insert(TlbEntry entry, int fifo);
 
   void invalidate_tlb(uint32_t process_id, uint32_t vpn);
 
@@ -77,7 +85,7 @@ private:
 
   int random_generator(uint32_t start, uint32_t end);
 
-  int replacingPolicy(int size);
+  //int replacingPolicy(int size);
 };
 
 #endif

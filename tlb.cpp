@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include "tlb.h"
 
 int L1_hit = 0;
@@ -21,16 +22,9 @@ Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) : l1_
     l2_list->push_back(new vector<TlbEntry>());
   }
   
-  l2_process = new vector<uint32_t>();
   srand(time(NULL));
   cout << "TLB initialized" << endl;
 }
-
-// Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) {
-//   l1_size = l1_size;
-//   l2_size = l2_size;
-//   max_process_allowed = max_process_allowed;
-// }
 
 // destructor
 Tlb::~Tlb() {
@@ -39,7 +33,6 @@ Tlb::~Tlb() {
     delete (*l2_list)[i];
   }
   delete l2_list;
-  delete l2_process;
 }
 
 
@@ -51,7 +44,7 @@ TlbEntry Tlb::create_tlb_entry(uint32_t pfn, uint32_t page_size, uint32_t virtua
   uint32_t vpn = (virtual_addr & mask) >> 12;
 
   TlbEntry tlb_entry = TlbEntry(process_id, page_size, vpn, pfn);
-    return tlb_entry;
+  return tlb_entry;
 }
 
 
@@ -66,6 +59,7 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
     uint32_t vpn = (virtual_addr & mask) >> 12;
     if (vpn == (*l1_list)[i].vpn) {
       L1_hit++;
+      
       return (*l1_list)[i].pfn;
     }
   }
@@ -132,6 +126,20 @@ int Tlb::l1_insert(TlbEntry entry) {
   }
 }
 
+// TLBs: insert a tlb entry into l1 using FIFO policy
+// return -1 if no replacement occurs, return the replaced index in l1 if replacement occurs.
+int Tlb::l1_insert(TlbEntry entry, int fifo) {
+  if(l1_list->size() < l1_size) {
+    l1_list->push_back(entry);
+    return -1;
+  } else {
+    // l1 is full, kick the first element out
+    l1_list->erase(l1_list->begin());
+    l1_list->push_back(entry);
+    return 0;  // return the index of replaced element
+  }
+}
+
 //flush all
 void Tlb::l1_flush() {
   while (l1_list->size() != 0) {
@@ -141,44 +149,84 @@ void Tlb::l1_flush() {
 
 // default: maximum 256 entries allowed per process
 void Tlb::l2_insert(TlbEntry entry) {
-    auto iter = std::find_if(l2_list->begin(), l2_list->end(), [entry](const vector<TlbEntry>* procTlb) {
+    // std::find_if() is used for searching a range defined by iterators for the first element that satisfies a specific condition.
+    // check if that process is already in tlb l2 list
+    auto iter = find_if(l2_list->begin(), l2_list->end(), [entry](const vector<TlbEntry>* procTlb) {
         return !procTlb->empty() && procTlb->back().process_id == entry.process_id;
     });
     vector<TlbEntry>* toReplace = nullptr;
     if (iter == l2_list->end()) {
-        // current process not in l2 tlb
-        auto iter = std::find_if(l2_list->begin(), l2_list->end(), [](const vector<TlbEntry>* procTlb) {
+        // the process is not in l2 tlb
+        // find the first empty proTlb (sub l2 tlb)
+        auto iter = find_if(l2_list->begin(), l2_list->end(), [](const vector<TlbEntry>* procTlb) {
             return procTlb->empty();
         });
         if (iter == l2_list->end()) {
-            // reached max_process_allowed
+            // no empty sub list is found, reached max_process_allowed
+            // pick a random sub list and flush all the enties of that sub list
             auto idx = random_generator(0, max_process_allowed);
             toReplace = (*l2_list)[idx];
             toReplace->clear();
         } else {
+            // an empty sub list is found
             toReplace = *iter;
         }
     } else {
+      // the process is already in l2 tlb
         toReplace = *iter;
     }
     if (toReplace->size() == l2_size_per_process) {
-        int idx = replacingPolicy(l2_size_per_process);
+      // the sub l2 is already full, pick a random one to replace
+        int idx = random_generator(0, l2_size_per_process);
         (*toReplace)[idx] = entry;
     } else {
+      // sub l2 is not null, push back
         toReplace->push_back(entry);
     }
 }
 
-int Tlb::replacingPolicy(int size) {
-    return random_generator(0, l2_size_per_process);
+void Tlb::l2_insert(TlbEntry entry, int fifo) {
+    // std::find_if() is used for searching a range defined by iterators for the first element that satisfies a specific condition.
+    // check if that process is already in tlb l2 list
+    auto iter = find_if(l2_list->begin(), l2_list->end(), [entry](const vector<TlbEntry>* procTlb) {
+        return !procTlb->empty() && procTlb->back().process_id == entry.process_id;
+    });
+    vector<TlbEntry>* toReplace = nullptr;
+    if (iter == l2_list->end()) {
+        // the process is not in l2 tlb
+        // find the first empty proTlb (sub l2 tlb)
+        auto iter = find_if(l2_list->begin(), l2_list->end(), [](const vector<TlbEntry>* procTlb) {
+            return procTlb->empty();
+        });
+        if (iter == l2_list->end()) {
+            // no empty sub list is found, reached max_process_allowed
+            // delete the first sub list and insert a new empty sub list at the end
+            delete l2_list->front();
+            l2_list->erase(l2_list->begin());
+            l2_list->push_back(new vector<TlbEntry>());
+            toReplace = l2_list->back();
+        } else {
+            // an empty sub list is found
+            toReplace = *iter;
+        }
+    } else {
+      // the process is already in l2 tlb
+        toReplace = *iter;
+    }
+    if (toReplace->size() == l2_size_per_process) {
+      // the sub l2 is already full, pick the first one to remove, and insert at the end (FIFO)
+        toReplace->erase(toReplace->begin());
+        toReplace->push_back(entry);
+    } else {
+      // sub l2 is not null, push back
+        toReplace->push_back(entry);
+    }
 }
 
-// selective flushing
-void Tlb::l2_flush(vector<TlbEntry>* sub_vector) {
-  while (sub_vector->size() != 0) {
-    sub_vector->pop_back();
-  }
-}
+// int Tlb::replacingPolicy(int size) {
+//     return random_generator(0, l2_size_per_process);
+// }
+
 
 void Tlb::invalidate_tlb(uint32_t process_id, uint32_t vpn) {
   l1_remove(process_id, vpn);
@@ -203,22 +251,23 @@ void Tlb::l1_remove(uint32_t process_id, uint32_t vpn) {
   }
 }
 
+// when a page is swapped out from RAM, delete (invalidate) the corresponding tlb entry
 void Tlb::l2_remove(uint32_t process_id, uint32_t vpn) {
   // check if process is in l2 
-  for (int i = 0; i < l2_process->size(); i++) {
-    if ( (*l2_process)[i] == process_id) {
-      //process in l2, check if vpn is in sub-l2
-      vector<TlbEntry>* sub_process = (*l2_list)[i];
-      for (int j = 0; j < sub_process->size(); j++) {
-        if( (*sub_process)[j].vpn == vpn ) {
-          sub_process->erase(sub_process->begin() + j);
-          return;
+  for (int i = 0; i < l2_list->size(); i++) {
+    vector<TlbEntry>* sub_process = (*l2_list)[i];
+    if (!sub_process->empty()) {
+      if (sub_process->back().process_id == process_id) {
+        for (int j = 0; j < sub_process->size(); j++) {
+          if ((*sub_process)[j].vpn == vpn) {
+            sub_process->erase(sub_process->begin() + j);
+            return;
+          }
         }
       }
     }
   }
-
-  // otherwise, process not in l2
+  // otherwise, process not in l2 or process_id not found
   return;
 }
 
@@ -226,4 +275,90 @@ int Tlb::random_generator(uint32_t start, uint32_t end) {
   int span = end - start;
   int random = rand() % span + start;
   return random;
+}
+
+PTEntry::PTEntry(uint32_t page_size, uint32_t pfn):page_size(page_size),pfn(pfn) {}
+
+
+// test FIFO
+// test tlb look up return value
+int main() {
+
+    // test FIFO insert and invalidate_tlb
+    // params: l1 size, l2 size, max allowed
+    Tlb* tlb = new Tlb(64, 1024, 4);
+    // params: pid, pz, vpn, pfn
+
+    TlbEntry a = TlbEntry(1, 4096, 30, 60);
+    TlbEntry b = TlbEntry(1, 4096, 31, 61);
+    TlbEntry c = TlbEntry(1, 4096, 32, 62);
+    cout << "test l1 FIFO insert" << endl;
+    tlb->l1_insert(a,0); // a will disappear
+    for (int i=0; i<63; i++) {
+      tlb->l1_insert(b,0);
+    }
+    tlb->l1_insert(c,0);  // c will be the end
+
+    for (int i=0; i<tlb->l1_list->size(); i++) {
+      vector <TlbEntry>* temp = tlb->l1_list;
+      cout << (*temp)[i].vpn << endl;
+    }
+
+
+    cout << "test l2 FIFO insert" << endl;
+    tlb->l2_insert(a,0);
+    for (int i=0; i<255; i++) {
+      tlb->l2_insert(b,0);  //pid 5
+    }
+    tlb->l2_insert(c,0);
+
+    vector <vector <TlbEntry>*>* l2 = tlb->l2_list;
+    vector <TlbEntry>* temp = (*l2)[0];
+    cout << temp->front().vpn << endl; // expected 31
+    cout << temp->back().vpn << endl;  // expected 32
+
+    // TlbEntry a = TlbEntry(1, 4096, 30, 60);
+    // TlbEntry b = TlbEntry(1, 4096, 31, 61);
+    // TlbEntry c = TlbEntry(1, 4096, 32, 62);
+    // TlbEntry d = TlbEntry(1, 4096, 33, 63);
+    // TlbEntry e = TlbEntry(1, 4096, 34, 64);
+
+    // tlb->l1_insert(a,0);
+    // tlb->l1_insert(b,0);
+    // tlb->l1_insert(c,0);
+    // tlb->l1_insert(d,0);
+    // tlb->l1_insert(e,0);
+    // tlb->l2_insert(a,0);
+    // tlb->l2_insert(b,0);
+    // tlb->l2_insert(c,0);
+    // tlb->l2_insert(d,0);
+    // tlb->l2_insert(e,0);
+
+    // TlbEntry aa = TlbEntry(2, 4096, 30, 60);
+    // TlbEntry bb = TlbEntry(2, 4096, 31, 61);
+    // TlbEntry cc = TlbEntry(2, 4096, 32, 62);
+    // TlbEntry dd = TlbEntry(2, 4096, 33, 63);
+    // TlbEntry ee = TlbEntry(2, 4096, 34, 64);
+
+    // tlb->l2_insert(aa,0);
+    // tlb->l2_insert(bb,0);
+    // tlb->l2_insert(cc,0);
+    // tlb->l2_insert(dd,0);
+    // tlb->l2_insert(ee,0);
+
+    // tlb->invalidate_tlb(1, 33); //process_id, vpn
+    
+    // cout << tlb->l1_list->size() << endl;  // expected 4
+    // cout << (*tlb->l2_list)[0]->size() << endl;  // expected 4
+    // cout << (*tlb->l2_list)[1]->size() << endl;  // expected 5
+
+    // tlb->invalidate_tlb(2, 34);
+    // cout << (*tlb->l2_list)[1]->size() << endl;  // expected 4
+
+    delete tlb;
+
+    
+
+    cout << "No error occurs" << endl;
+    return 0;
 }
