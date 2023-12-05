@@ -282,6 +282,7 @@ PTEntry::PTEntry(uint32_t page_size, uint32_t pfn):page_size(page_size),pfn(pfn)
 
 // test FIFO
 // test tlb look up return value
+/*
 int main() {
 
     // test FIFO insert and invalidate_tlb
@@ -362,3 +363,4 @@ int main() {
     cout << "No error occurs" << endl;
     return 0;
 }
+ */

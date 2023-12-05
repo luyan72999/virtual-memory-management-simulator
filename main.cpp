@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
     cout << "Heap miss:    " << heap_miss << endl;
     cout << "TLB misses:   " << TLB_miss << endl;
     cout << "TLB hit rate: " << 1.0 * (memory_access_attempts - TLB_miss) / memory_access_attempts << endl;
+    cout << "L1 hit rate:  " << 1.0 * L1_hit / memory_access_attempts << endl;
+    cout << "L2 hit rate:  " << 1.0 * L2_hit / (L2_hit + TLB_miss) << endl;
 
     inputFile.close();
     return 0;
