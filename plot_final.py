@@ -63,9 +63,9 @@ def extract_tlb_hit_rates(file_path):
 # file_path = 'results_case1.txt'
 # rates_with_20_case1, rates_with_50_case1,rates_with_90_case1 = extract_tlb_hit_rates(file_path)
 #
-# # case 2: one-level TLB and variable page sizes
-# file_path = 'results_case2.txt'
-# rates_with_20_case2, rates_with_50_case2,rates_with_90_case2 = extract_tlb_hit_rates(file_path)
+# case 2: one-level TLB, random policy, and variable page sizes
+file_path = './results/results_case2.txt'
+rates_with_20_1_case2, rates_with_20_4_case2,rates_with_20_8_case2, rates_with_50_1_case2,rates_with_50_4_case2,rates_with_50_8_case2,rates_with_90_1_case2,rates_with_90_4_case2,rates_with_90_8_case2 = extract_tlb_hit_rates(file_path)
 #
 # # case 3: two-level TLB, random policy, 4KB page size
 file_path = './results/results_case3.txt'
@@ -83,7 +83,11 @@ y3 = [rates_with_20_4_case3, rates_with_50_4_case3,rates_with_90_4_case3]
 y4 = [rates_with_20_4_case4, rates_with_50_4_case4,rates_with_90_4_case4]
 y5 = [rates_with_20_8_case3, rates_with_50_8_case3,rates_with_90_8_case3]
 y6 = [rates_with_20_8_case4, rates_with_50_8_case4,rates_with_90_8_case4]
+y7 = [rates_with_20_1_case2, rates_with_50_1_case2,rates_with_90_1_case2]
+y8 = [rates_with_20_4_case2, rates_with_50_4_case2,rates_with_90_4_case2]
+y9 = [rates_with_20_8_case2, rates_with_50_8_case2,rates_with_90_8_case2]
 
+#variable page size VS 4kb page size
 fig, axs = plt.subplots(1, 3, sharey=True, figsize=(12, 4))
 
 axs[0].plot(x, y1, label='4kb', color='blue')
@@ -96,8 +100,8 @@ axs[1].plot(x, y4, label='variable', color='orange')
 axs[1].set_title('4 processes')
 axs[1].legend()
 
-axs[2].plot(x, y1, label='4kb', color='blue')
-axs[2].plot(x, y2, label='variable', color='orange')
+axs[2].plot(x, y5, label='4kb', color='blue')
+axs[2].plot(x, y6, label='variable', color='orange')
 axs[2].set_title('8 processes')
 axs[2].legend()
 
@@ -106,3 +110,27 @@ fig.text(0.008, 0.5, 'TLB hit rate', ha='center', va='center', rotation='vertica
 
 plt.tight_layout()
 plt.savefig('plot_compare_pageSize.png', dpi=300)
+
+#two-level TLB VS one-level TLB
+fig, axs = plt.subplots(1, 3, sharey=True, figsize=(12, 4))
+
+axs[0].plot(x, y7, label='one-level TLB', color='blue')
+axs[0].plot(x, y2, label='two-level TLB', color='orange')
+axs[0].set_title('1 process')
+axs[0].legend()
+
+axs[1].plot(x, y8, label='one-level TLB', color='blue')
+axs[1].plot(x, y4, label='two-level TLB', color='orange')
+axs[1].set_title('4 processes')
+axs[1].legend()
+
+axs[2].plot(x, y9, label='one-level TLB', color='blue')
+axs[2].plot(x, y6, label='two-level TLB', color='orange')
+axs[2].set_title('8 processes')
+axs[2].legend()
+
+fig.text(0.5, 0.02, 'Locality', ha='center', va='center')
+fig.text(0.008, 0.5, 'TLB hit rate', ha='center', va='center', rotation='vertical')
+
+plt.tight_layout()
+plt.savefig('plot_compare_TLB.png', dpi=300)
