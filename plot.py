@@ -42,7 +42,7 @@ def extract_tlb_hit_rates(file_path):
 file_path = 'results_case1.txt'
 rates_with_20_case1, rates_with_50_case1,rates_with_90_case1 = extract_tlb_hit_rates(file_path)
 
-# case 2: one-level TLB and variable page size
+# case 2: one-level TLB and variable page sizes
 file_path = 'results_case2.txt'
 rates_with_20_case2, rates_with_50_case2,rates_with_90_case2 = extract_tlb_hit_rates(file_path)
 
@@ -50,7 +50,7 @@ rates_with_20_case2, rates_with_50_case2,rates_with_90_case2 = extract_tlb_hit_r
 file_path = 'results_case3.txt'
 rates_with_20_case3, rates_with_50_case3,rates_with_90_case3 = extract_tlb_hit_rates(file_path)
 
-# case 4: two-level TLB and variable page size
+# case 4: two-level TLB and variable page sizes
 file_path = 'results_case4.txt'
 rates_with_20_case4, rates_with_50_case4,rates_with_90_case4 = extract_tlb_hit_rates(file_path)
 
@@ -68,9 +68,9 @@ bar_width = 0.2
 
 plt.figure(figsize=(10, 5))
 plt.bar(indices - 1.5*bar_width, case1, bar_width, color='skyblue', label='one level TLB and 4KB page size')
-plt.bar(indices - 0.5*bar_width, case2, bar_width, color='slateblue', label='one level TLB and variable page size')
+plt.bar(indices - 0.5*bar_width, case2, bar_width, color='slateblue', label='one level TLB and variable page sizes')
 plt.bar(indices + 0.5*bar_width, case3, bar_width, color='gray', label='two level TLB and 4KB page size')
-plt.bar(indices + 1.5*bar_width, case4, bar_width, color='orange', label='two level TLB and variable page size')
+plt.bar(indices + 1.5*bar_width, case4, bar_width, color='orange', label='two level TLB and variable page sizes')
 
 
 plt.xlabel('Locality')
@@ -88,7 +88,7 @@ plt.savefig('plot4cases.png', dpi=300)
 bar_width = 0.4
 plt.figure(figsize=(8, 5))
 plt.bar(indices - 0.5*bar_width, case3, bar_width, color='gray', label='4KB page size')
-plt.bar(indices + 0.5*bar_width, case4, bar_width, color='orange', label='variable page size')
+plt.bar(indices + 0.5*bar_width, case4, bar_width, color='orange', label='variable page sizes')
 
 
 plt.xlabel('Locality')

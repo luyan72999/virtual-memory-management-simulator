@@ -61,10 +61,11 @@ PTE TwoLevelPageTable::translate(uint32_t vaddr) {
     if (!pte.present) {
         // TODO: Call OS swap in method
         // Done
-        os.swapInPage(vpn, pte.page_size);
-        pte = mapToPte[pteIdx];
-        memory_hit += 2;
+//        os.swapInPage(vpn, pte.page_size);
+//        pte = mapToPte[pteIdx];
+//        memory_hit += 2;
         //throw runtime_error("Present bit of pte is 0.");
+        throw logic_error("Present bit of pte is 0.");
     }
     return pte;
 }
