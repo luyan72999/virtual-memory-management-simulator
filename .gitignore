@@ -4,3 +4,4 @@ a.out.dSYM/
 .DS_Store
 .idea
 cmake-build-debug/
+results/*

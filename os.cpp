@@ -23,7 +23,7 @@ using namespace std;
 os::os(size_t memorySize, size_t diskSize, uint32_t high_watermarkGiven,
        uint32_t low_watermarkGiven)
     : minPageSize(4096), memoryMap(memorySize / minPageSize, false),
-      diskMap(diskSize / minPageSize, false),
+      //diskMap(diskSize / minPageSize, false),
       high_watermark(high_watermarkGiven), low_watermark(low_watermarkGiven),
       totalFreeSize(-1), tlb(Tlb(64, 1024, 4)) {
 }
