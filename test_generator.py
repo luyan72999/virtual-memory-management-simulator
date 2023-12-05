@@ -222,7 +222,7 @@ def main() -> None:
     ALLOC = 0.98
     FREE = 0.99
     SWITCH = 1
-    with open('tests.txt', 'w') as f:
+    with sys.stdout as f:
         current_process: Process = random.choice(processes)
         write_switch_proc(f, current_process.id)
         for i in range(num_tests):
