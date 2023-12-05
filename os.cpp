@@ -276,6 +276,7 @@ void os::switchToProcess(uint32_t pid) {
     if (it != processes.end()) {
         // Process found, switch to it
         runningProc = &(*it);
+        tlb.l1_flush();
     } else {
         // Process not found, create a new one
         createProcess(pid);
