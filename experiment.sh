@@ -3,7 +3,7 @@ for file in "test_cases"/*; do
         filename=$(basename -- "$file")
         echo $filename
         
-        ./a.out "test_cases/$filename" > "results/$filename"
+        ./a.out "test_cases/$filename" >> "results/var_page_1_lv_tlb.txt"
         
         echo ""
     fi
