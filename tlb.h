@@ -22,6 +22,7 @@ public:
   uint32_t vpn;
   uint32_t pfn;
   uint32_t reference;  // only needed in LRU replacement policy
+  uint32_t frequency;
 
   // constructor
   TlbEntry(uint32_t process_id, uint32_t page_size, uint32_t vpn, uint32_t pfn);
@@ -58,6 +59,10 @@ public:
   // return pfn if found, -1 if miss
   int look_up(uint32_t virtual_addr, uint32_t process_id);
 
+  // the following look up helps implementing lru policy
+  int look_up(uint32_t virtual_addr, uint32_t process_id, int lru);
+
+
   // upon TLB hit, assemble physical address: use pfn and offset to form a physicai address
   uint32_t assemble_physical_addr(TlbEntry tlb_entry, uint32_t virtual_addr);
 
@@ -66,6 +71,11 @@ public:
   int l1_insert(TlbEntry entry);
   // the following l1_insert() implememts a fifo policy. When calling the method, the parameter fifo can be any number (it's added only for method overloading)
   int l1_insert(TlbEntry entry, int fifo);
+  // the following l1_insert() implememts a lfu policy.
+  int l1_insert(TlbEntry entry, int lfu1, int lfu2);
+    // the following l1_insert() implememts a lru policy.
+  int l1_insert(TlbEntry entry, int lru1, int lru2, int lru3);
+
   //flush all
   void l1_flush();
   

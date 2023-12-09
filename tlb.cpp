@@ -7,11 +7,11 @@ int L2_hit = 0;
 int TLB_miss = 0;
 
 // constructor
-TlbEntry::TlbEntry(uint32_t process_id, uint32_t page_size, uint32_t vpn, uint32_t pfn) : process_id(process_id),page_size(page_size),vpn(vpn), pfn(pfn), reference(1) {}
+TlbEntry::TlbEntry(uint32_t process_id, uint32_t page_size, uint32_t vpn, uint32_t pfn) : process_id(process_id),page_size(page_size),vpn(vpn), pfn(pfn), reference(1), frequency(1) {}
 
 
 //two-level tlb
-// constructor
+//constructor
 Tlb::Tlb(uint32_t l1_size, uint32_t l2_size, uint32_t max_process_allowed) : l1_size(l1_size), l2_size(l2_size), max_process_allowed(max_process_allowed) {
   // by default: l1 size 64, l2 size 1024, max process allowed is 4
   l1_list = new vector<TlbEntry>();
@@ -50,6 +50,7 @@ TlbEntry Tlb::create_tlb_entry(uint32_t pfn, uint32_t page_size, uint32_t virtua
 
 // look_up(): given a virtual addr, look it up in both l1 and l2
 // return pfn if found, -1 if miss
+// this look_up method applies to random, fifo, and least frequently used policies
 int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
   // first, check l1
   // loop through l1, compute the virtual addr vpn using tlb entry page size, and compare the 2 vpns
@@ -59,15 +60,18 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
     uint32_t vpn = (virtual_addr & mask) >> 12;
     if (vpn == (*l1_list)[i].vpn) {
       L1_hit++;
-      
+      // update frequency of that tlb entry
+      (*l1_list)[i].frequency++;
       return (*l1_list)[i].pfn;
     }
   }
 
   // If only 1 level TLB is supported, uncomment this
+  
   TLB_miss++;
   L1_hit--;
   throw logic_error("TLB miss");
+  
 
   // not in l1, check l2:
   // first, check if the process is already in l2
@@ -95,6 +99,57 @@ int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id) {
   throw logic_error("TLB miss");
 }
 
+int Tlb::look_up(uint32_t virtual_addr, uint32_t process_id, int lru) {
+  // first, check l1
+  // loop through l1, compute the virtual addr vpn using tlb entry page size, and compare the 2 vpns
+  for (int i = 0; i < l1_list->size(); i++) {
+    uint32_t page_size = (*l1_list)[i].page_size;
+    uint32_t mask = ~(page_size - 1);
+    uint32_t vpn = (virtual_addr & mask) >> 12;
+    if (vpn == (*l1_list)[i].vpn) {
+      TlbEntry temp = (*l1_list)[i];
+      int j = i + 1;
+      for (; j < l1_list->size(); j++) {
+        (*l1_list)[j-1] = (*l1_list)[j];
+      }
+      (*l1_list)[j-1] = temp;
+      L1_hit++;
+      return (*l1_list)[i].pfn;
+    }
+  }
+  
+  // If only 1 level TLB is supported, uncomment this
+  
+  TLB_miss++;
+  L1_hit--;
+  throw logic_error("TLB miss");
+  
+
+  // not in l1, check l2:
+  // first, check if the process is already in l2
+  for (int i = 0; i < l2_list->size(); i++) {
+    if ((*l2_list)[i]->empty())
+      continue;
+    if ((*l2_list)[i]->back().process_id != process_id)
+      continue;
+    for (int j = 0; j < (*l2_list)[i]->size(); j++) {
+      TlbEntry entry = (*((*l2_list)[i]))[j];
+      uint32_t page_size = entry.page_size;
+      uint32_t mask = ~(page_size - 1);
+      uint32_t vpn = (virtual_addr & mask) >> 12;
+      if (vpn == entry.vpn) {
+        // found in l2, insert this one into l1
+        l1_insert(entry);
+        L2_hit++;
+        return entry.pfn;
+      }
+    }
+  }
+  // otherwise, l2 miss, go to page table with virtual addr and get a page table entry
+  TLB_miss++;
+  L1_hit--;
+  throw logic_error("TLB miss");
+}
 
 // upon TLB hit, assemble physical address: use pfn and offset to form a physicai address
 uint32_t Tlb::assemble_physical_addr(TlbEntry tlb_entry, uint32_t virtual_addr) {
@@ -136,9 +191,40 @@ int Tlb::l1_insert(TlbEntry entry, int fifo) {
     // l1 is full, kick the first element out
     l1_list->erase(l1_list->begin());
     l1_list->push_back(entry);
-    return 0;  // return the index of replaced element
+    return 0; 
   }
 }
+
+// policy: least frequently used
+int Tlb::l1_insert(TlbEntry entry, int lfu1, int lfu2) {
+  if(l1_list->size() < l1_size) {
+    l1_list->push_back(entry);
+    return -1;
+  } else {
+    // l1 is full, kick out the least frequently used entry
+    sort(l1_list->begin(), l1_list->end(), [](const TlbEntry& e1, const TlbEntry& e2) {
+        return e1.frequency < e2.frequency;
+    });
+    // the first one will be the least frequently used after sorting
+    l1_list->erase(l1_list->begin());
+    l1_list->push_back(entry);
+    return 0;  
+  }
+}
+
+// policy: least recently used
+int Tlb::l1_insert(TlbEntry entry, int lru1, int lru2, int lru3) {
+  if(l1_list->size() < l1_size) {
+    l1_list->push_back(entry);
+    return -1;
+  } else {
+    // l1 is full, kick out the least frequently used entry
+    l1_list->erase(l1_list->begin());
+    l1_list->push_back(entry);
+    return 0;  
+  }
+}
+
 
 //flush all
 void Tlb::l1_flush() {
