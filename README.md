@@ -1,8 +1,9 @@
 
 # Virtual Memory Management Simulator
 The Virtual Memory Management Simulator is designed to emulate and analyze the critical aspects of address translation in virtual memory systems. 
-The primary focus of this simulator is on the Page Table, Translation Lookaside Buffer (TLB), and their interaction with the operating system. 
-The goal of the project is to enhance the TLB cache hit rate, thereby minimizing the need for the operating system to access the page table for every memory request. 
+The primary focus of this simulator is on the **Page Table, Translation Lookaside Buffer (TLB)**, and their interaction with the **Operating System**. 
+**The goal of the project is to increase the TLB cache hit rate**, thereby minimizing the need for the operating system to access the page table for every memory translation. 
+System administrators and developers can use the simulator to fine-tune virtual memory management parameters for optimal TLB hit rates, **enhancing overall system performance.**
 
 
 ## Key Features
